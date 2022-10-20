@@ -1,5 +1,6 @@
 """Hold main game object and play freecell."""
 import random
+from typing import Optional
 import pygame
 from cards import Card
 from space import Space, Tableau
@@ -23,6 +24,7 @@ class Game:
         self._cards = self.create_cards()
         self.place_cards()
         self._running = True
+        self._held_card: Optional[Card] = None
 
     def create_cards(self):
         """Create the full deck of cards."""
@@ -90,6 +92,40 @@ class Game:
         """Draw the cards onto the game."""
         for column in self._tableau:
             column.draw_cards()
+        if self._held_card:
+            self._held_card.draw(self._screen)
+
+    def get_card_at_position(self, pos: tuple[int, int]):
+        """Get the topmost card at a position, if it exists."""
+        for column in self._tableau:
+            card = column.get_card_at_position(pos)
+            if card:
+                return card
+
+    def handle_event(self, event):
+        if event.type == pygame.QUIT:
+            self._running = False
+        elif pygame.mouse.get_pressed()[0]:
+            self.handle_mouse_down()
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.handle_mouse_up()
+
+    def handle_mouse_down(self):
+        """Handle if the player clicked a card."""
+        cursor_pos = pygame.mouse.get_pos()
+        if not self._held_card:  # If the player isn't already moving a card
+            card = self.get_card_at_position(cursor_pos)
+            if card:
+                self._held_card = card
+                self._held_card.center_on_point(cursor_pos)
+        else:
+            self._held_card.center_on_point(cursor_pos)
+
+    def handle_mouse_up(self):
+        """If the player releases the mouse."""
+        if self._held_card:
+            self._held_card.return_to_base()
+            self._held_card = None
 
     def place_cards(self):
         """Shuffle cards into the tableau columns."""
@@ -107,8 +143,7 @@ class Game:
         while self._running:
             self.draw()
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self._running = False
+                self.handle_event(event)
 
 
 if __name__ == "__main__":

@@ -43,9 +43,22 @@ class Tableau(Space):
     def add_card(self, card: "Card"):
         """Add card to the next space in the column."""
         card.set_new_base(self._x, self.highest_y)
+        card.return_to_base()
+        # If there is already a card, tell it the new card is on top of it.
+        if len(self._cards):
+            self._cards[-1].above_card = card
         self._cards.append(card)
 
     def draw_cards(self):
         """Draw entire column of cards."""
         for card in self._cards:
             card.draw(self._screen)
+
+    def get_card_at_position(self, pos: tuple[int, int]):
+        """Get the card at the given position, if it exists."""
+        left_bound = self._x
+        right_bound = left_bound + self.rectangle.width
+        if pos[0] in range(left_bound, right_bound + 1):
+            for card in self._cards[::-1]:
+                if card.point_on_card(pos):
+                    return card
