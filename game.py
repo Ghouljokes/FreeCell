@@ -1,6 +1,9 @@
 """Hold main game object and play freecell."""
+import random
 import pygame
-from space import Space
+from cards import Card
+from space import Space, Tableau
+from spritesheet import SpriteSheet
 from constants import CARD_WIDTH, BUFFER_SIZE
 
 BG_COLOR = "#35654d"
@@ -13,10 +16,23 @@ class Game:
     def __init__(self):
         """Set up game."""
         self._screen = self.create_screen()
+        self._sprite_sheet = SpriteSheet()
         self._foundation: list[Space] = self.create_foundation()
         self._free_cells: list[Space] = self.create_free()
-        self._tableau: list[Space] = self.create_tableau()
+        self._tableau: list[Tableau] = self.create_tableau()
+        self._cards = self.create_cards()
+        self.place_cards()
         self._running = True
+
+    def create_cards(self):
+        """Create the full deck of cards."""
+        cards = []
+        for suit in ["clubs", "diamonds", "hearts", "spades"]:
+            for value in range(1, 14):
+                sprite = self._sprite_sheet.card_sprite(suit, value)
+                card = Card(value, suit, sprite)
+                cards.append(card)
+        return cards
 
     def create_screen(self):
         """Create main screen for the game."""
@@ -51,7 +67,7 @@ class Game:
         y = 120
         tableau = []
         for _ in range(8):
-            space = Space(self._screen, x, y)
+            space = Tableau(self._screen, x, y)
             tableau.append(space)
             x += BUFFER_SIZE + CARD_WIDTH
         return tableau
@@ -60,6 +76,7 @@ class Game:
         """Draw the game screen."""
         self._screen.fill(BG_COLOR)  # Reset screen
         self.draw_board()
+        self.draw_cards()
         pygame.display.update()
 
     def draw_board(self):
@@ -68,6 +85,22 @@ class Game:
         for space_collection in space_collections:
             for space in space_collection:
                 pygame.draw.rect(self._screen, SLOT_COLOR, space.rectangle)
+
+    def draw_cards(self):
+        """Draw the cards onto the game."""
+        for column in self._tableau:
+            column.draw_cards()
+
+    def place_cards(self):
+        """Shuffle cards into the tableau columns."""
+        random.shuffle(self._cards)
+        column = 0
+        for card in self._cards:
+            self._tableau[column].add_card(card)
+            if column < 7:
+                column += 1
+            else:
+                column = 0
 
     def run(self):
         """Run game until close."""
