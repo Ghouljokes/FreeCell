@@ -38,7 +38,7 @@ class Game:
 
     def create_screen(self):
         """Create main screen for the game."""
-        screen = pygame.display.set_mode((450, 400))
+        screen = pygame.display.set_mode((450, 450))
         pygame.display.set_caption("Freecell")
         return screen
 
