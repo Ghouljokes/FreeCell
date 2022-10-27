@@ -78,7 +78,7 @@ class Game:
     def deal_cards(self):
         """Deal all cards to the tableau"""
         shuffle(self._deck)
-        column = 0
+        column = 0  # To iterate through columns
         for card in self._deck:
             self._tableau[column].stack_card(card)
             if column < len(self._tableau) - 1:
@@ -126,6 +126,7 @@ class Game:
             target = self.get_mouse_target(cursor_pos)
             if target and type(target) == Card:
                 self._held_card = target
+                target.get_clicked(cursor_pos)
 
     def handle_mouse_up(self):
         if self._held_card:
@@ -147,7 +148,7 @@ class Game:
         """Update for the current frame."""
         if self._held_card:
             cursor_pos = pygame.mouse.get_pos()
-            self._held_card.center_on_point(cursor_pos)
+            self._held_card.drag(cursor_pos)
 
 
 if __name__ == "__main__":

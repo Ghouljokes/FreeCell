@@ -1,8 +1,9 @@
 Game class:
     attributes:
-        screen, foundation, free cells, tableau, cards, held_card
+        screen, foundation, free cells, tableau, deck, held_card, running
     
     create_game:
+        game.create_screen
         game.create_foundation
         game.create_free_cells
         game.create_tabluau
@@ -12,12 +13,15 @@ Game class:
     
     create_foundation
         create foundation spaces in upper left
+        create region for foundation
 
     create_free_cells
         create free cells in upper right
+        create region for free cells
 
     create_tableau
         create 8 tableau columns
+        create tableau region at lower portion of screen
     
     deal_cards:
         shuffle deck
@@ -29,21 +33,20 @@ Game class:
             else:
                 go back to first tab
     
-    run:
-        while game.running:
-            game.tick
-    
-    tick:
-        game.draw
-        game.handle_events
-        game.update
-    
     draw:
         for each space:
             space.draw
         if held_card:
             held_card.draw
-    
+
+    get_mouse_target:
+        Check each region to see if mouse is in it.
+            if mouse in region:
+                for space in region:
+                    space.check_for_target
+                    if target is card:
+                        return target
+
     handle_events:
         get events
         for event in events:
@@ -62,23 +65,24 @@ Game class:
         if target:
             if target is card:
                 held_card = card
-                card.center_on_location cursor position
+                target.get_clicked
     
     handle_Mouse_up:
         if held_card:
             held_card.return_to_base
             set held_card to None
     
-    get_mouse_target:
-        Check each region to see if mouse is in it.
-            if mouse in region:
-                for space in region:
-                    space.check_for_target
-                    if target is card:
-                        return target
+    run:
+        while game.running:
+            game.tick
+    
+    tick:
+        game.draw
+        game.handle_events
+        game.update
 
     update:
         if held_card:
-            center held card on mouse
+            *card.drag to mouse location*
 
     

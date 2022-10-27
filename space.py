@@ -38,9 +38,8 @@ class Space:
 
     def draw(self, screen):
         """Draw space and contents."""
-        if not self._card:
-            pygame.draw.rect(screen, SLOT_COLOR, self._rect)
-        else:
+        pygame.draw.rect(screen, SLOT_COLOR, self._rect)
+        if self._card:
             self._card.draw(screen)
 
     def move(self, location):

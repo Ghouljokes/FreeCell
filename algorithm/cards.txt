@@ -8,35 +8,45 @@ class Card(sprite):
         set rect based off of image
         set home_space to None for now
         set stack_space to StackSpace
+        set anchor point to 0, 0
 
     above_card:
         return stack_space.card
+
+    get_clicked(cursor_pos):
+        set anchor point
 
     below_card:
         if home_space is a StackSpace:
             return home_space's parent card
 
-    draw:
-        Draw card's sprite.
-        if there are any cards on top of this one, draw that too.
-
     center_on_point(location):
         set rectangle center to location
         card.move to new topleft corner
+
+    draw:
+        Draw card's sprite.
+        if there are any cards on top of this one, draw that too.
 
     go_home:
         if home_space:
             self.move(home_space.rect.topleft)
 
+    set_anchor(cursor_pos):
+        set the anchor point as coords relative to topleft
+
     set_base(space):
         remove card from old space
         set home_space to space
         card.go_home
-    
+
     move(location):
         move rectangle to new location
         move stack_space to be offset down from rectangle's new location
     
+    drag(cursor_pos):
+        move anchor point to cursor pos
+
 create_deck:
     initialize the deck as an empty list
     load spritesheet

@@ -17,9 +17,8 @@ class Space:
         set self.card to None
 
     def draw(screen):
-        if no card:
-            draw rectangle
-        else:
+        draw rectangle
+        if card:
             card.draw 
     
     check_for_target(cursor location):

@@ -16,6 +16,7 @@ class Card(pygame.sprite.Sprite):
         self.rect: pygame.rect.Rect = self.image.get_rect()  # Used for drawing
         self._home_space: Optional["Space"] = None
         self._stack_space = StackSpace(self)
+        self._anchor_point = (0, 0)
 
     @property
     def above_card(self):
@@ -38,12 +39,25 @@ class Card(pygame.sprite.Sprite):
         # Since move handles stuff besides changing the rect, call that.
         self.move(self.rect.topleft)
 
+    def drag(self, cursor_pos):
+        """Drag card so anchor point is at cursor_pos"""
+        anchor_x_coord = self.rect.left + self._anchor_point[0]
+        anchor_y_coord = self.rect.top + self._anchor_point[1]
+        dx = cursor_pos[0] - anchor_x_coord
+        dy = cursor_pos[1] - anchor_y_coord
+        new_position = self.rect.left + dx, self.rect.top + dy
+        self.move(new_position)
+
     def draw(self, screen: pygame.surface.Surface):
         """Draw the card's sprite, then draw the sprite of any cards above."""
         dest = self.rect.topleft
         screen.blit(self.image, dest)
         if self.above_card:  # If card above this one
             self.above_card.draw(screen)
+
+    def get_clicked(self, cursor_pos):
+        """Handle card becoming held."""
+        self.set_anchor(cursor_pos)
 
     def go_home(self):
         """Move card back to the home space."""
@@ -55,6 +69,13 @@ class Card(pygame.sprite.Sprite):
         self.rect.topleft = location
         stack_location = (location[0], location[1] + STACK_OFFSET)
         self._stack_space.move(stack_location)
+
+    def set_anchor(self, cursor_pos):
+        """Set an anchor point on the card based off cursor_pos.
+        The anchor point is relative to topleft corner."""
+        anchor_x = cursor_pos[0] - self.rect.left
+        anchor_y = cursor_pos[1] - self.rect.top
+        self._anchor_point = anchor_x, anchor_y
 
     def set_space(self, space: Space):
         """Set new base space and move card there."""
