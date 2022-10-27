@@ -29,6 +29,11 @@ class Card(pygame.sprite.Sprite):
         if self._home_space and type(self._home_space) == StackSpace:
             return self._home_space._parent_card
 
+    @property
+    def stack_space(self):
+        """Getter for stackspace."""
+        return self._stack_space
+
     def add_card(self, card):
         """Place a card into the stack space."""
         self._stack_space.add_card(card)
@@ -58,11 +63,14 @@ class Card(pygame.sprite.Sprite):
     def get_clicked(self, cursor_pos):
         """Handle card becoming held."""
         self.set_anchor(cursor_pos)
+        if self._home_space:
+            self._home_space.remove_card()
 
     def go_home(self):
         """Move card back to the home space."""
         if self._home_space:
             self.move(self._home_space.rect.topleft)
+            self._home_space.set_card(self)
 
     def move(self, location: tuple[int, int]):
         """Move card to new location."""

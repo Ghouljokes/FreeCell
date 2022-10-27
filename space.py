@@ -28,7 +28,7 @@ class Space:
 
     def add_card(self, card: "Card"):
         """Add a card to the space."""
-        self._card = card
+        self.set_card(card)
         card.set_space(self)
 
     def check_for_target(self, cursor_pos: tuple[int, int]):
@@ -51,6 +51,15 @@ class Space:
     def remove_card(self):
         """Empty the space."""
         self._card = None
+
+    def set_card(self, card):
+        """Set _card to given card."""
+        self._card = card
+
+    def valid_dest(self, card: "Card"):
+        """If space can hold card, return the space."""
+        if self.is_empty and self.rect.colliderect(card.rect):
+            return self
 
 
 class StackSpace(Space):
@@ -83,13 +92,6 @@ class Tableau(Space):
             top_card = top_card.above_card  # Move to next card
         return top_card
 
-    def stack_card(self, card: "Card"):
-        """Add card to the highest available space in the column."""
-        if self.is_empty:  # If column is empty, do a normal add.
-            self.add_card(card)
-        else:
-            self.top_card.add_card(card)
-
     def check_for_target(self, cursor_pos: tuple[int, int]):
         """Check if cursor in tableau column and retrieve card."""
         if cursor_pos[0] in range(self.rect.left, self.rect.right):
@@ -99,3 +101,23 @@ class Tableau(Space):
                     return target_card
                 else:
                     target_card = target_card.below_card
+
+    def stack_card(self, card: "Card"):
+        """Add card to the highest available space in the column."""
+        if not self._card:  # If column is empty, do a normal add.
+            self.add_card(card)
+        else:
+            self.top_card.add_card(card)
+
+    def top_space(self):
+        """Get top empty space in the column."""
+        if self.is_empty:
+            return self
+        else:
+            return self.top_card.stack_space
+
+    def valid_dest(self, card):
+        """Check validity of top card in the column."""
+        if self.is_empty:
+            return super().valid_dest(card)
+        return self.top_space().valid_dest(card)

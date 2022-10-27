@@ -1,5 +1,5 @@
 from random import shuffle
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 import pygame
 from space import Space, Tableau
 from cards import Card, create_deck
@@ -21,8 +21,20 @@ class Game:
         self._tableau, self._tab_region = self.create_tableau()
         self._deck = create_deck()
         self.deal_cards()
-        self._held_card = None
+        self._held_card: Optional["Card"] = None
         self._running = True
+
+    @property
+    def spaces(self):
+        return self._foundation + self._free_cells + self._tableau
+
+    def check_destination(self):
+        """Check for a destination for held_card if it exists."""
+        if self._held_card:
+            for space in self.spaces:
+                dest = space.valid_dest(self._held_card)
+                if dest:
+                    return dest
 
     def create_foundation(self):
         """Create foundation spaces and region on the left side of the screen."""
@@ -97,9 +109,9 @@ class Game:
 
     def get_mouse_target(self, cursor_pos):
         """Check to see if the mouse clicked on anything."""
-        space_lists = [self._foundation, self._free_cells, self._tableau]
+        spaces = [self._foundation, self._free_cells, self._tableau]
         regions = [self._found_region, self._free_region, self._tab_region]
-        for space_list, region in zip(space_lists, regions):
+        for space_list, region in zip(spaces, regions):
             if region.collidepoint(cursor_pos):
                 for space in space_list:
                     target = space.check_for_target(cursor_pos)
@@ -129,9 +141,20 @@ class Game:
                 target.get_clicked(cursor_pos)
 
     def handle_mouse_up(self):
+        """Handle event where mouse is released."""
         if self._held_card:
-            self._held_card.go_home()
-            self._held_card = None
+            self.release_card()
+
+    def release_card(self):
+        """Release held card."""
+        if not self._held_card:
+            raise Exception("Method release_card was called w/o held card.")
+        dest_space = self.check_destination()
+        # If available space for card to go:
+        if dest_space and dest_space != self._held_card._home_space:
+            dest_space.add_card(self._held_card)
+        self._held_card.go_home()
+        self._held_card = None
 
     def run(self):
         """Run game until it is closed."""

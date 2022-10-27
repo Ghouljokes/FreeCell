@@ -14,6 +14,7 @@ class Card(sprite):
         return stack_space.card
 
     get_clicked(cursor_pos):
+        clear remove card from space
         set anchor point
 
     below_card:
@@ -31,6 +32,7 @@ class Card(sprite):
     go_home:
         if home_space:
             self.move(home_space.rect.topleft)
+            home_space.add_card(self)
 
     set_anchor(cursor_pos):
         set the anchor point as coords relative to topleft

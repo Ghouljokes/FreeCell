@@ -1,10 +1,6 @@
 class Space:
     attributes:
         rect, card
-    
-    create space(position)
-        set rect
-        set card to None
 
     is_empty:
         return if no card in space
@@ -13,17 +9,24 @@ class Space:
         self.card = card
         set card's space as self
 
-    def remove_card:
-        set self.card to None
+    check_for_target(cursor location):
+        if cursor in rect and card in space:
+            return card
 
-    def draw(screen):
+    create space(position)
+        set rect
+        set card to None
+
+    draw(screen):
         draw rectangle
         if card:
             card.draw 
     
-    check_for_target(cursor location):
-        if cursor in rect and card in space:
-            return card
+    remove_card:
+        set self.card to None
+
+    valid_dest(card):
+        return space.isempty and space intersects card***
 
 
 class StackSpace(space):
@@ -41,7 +44,17 @@ class StackSpace(space):
 
 
 class Tableau(Space):
+
     
+    check_for_target:
+        if cursor x within tableau x:
+            target_card = top_card
+            while target card:
+                if cursor within card rect:
+                    return card
+                else:
+                    target card = card.below_card
+
     stack_card(card):
         if no card in space:
             do normal space add_card
@@ -54,11 +67,11 @@ class Tableau(Space):
                 move to next card and check that
             return highest card
     
-    check_for_target:
-        if cursor x within tableau x:
-            target_card = top_card
-            while target card:
-                if cursor within card rect:
-                    return card
-                else:
-                    target card = card.below_card
+    top_space:
+        if no card:
+            return self
+        else:
+            return top_card's stack space.
+    
+    valid_dest(card):
+        return top_space.valid_dest(card)

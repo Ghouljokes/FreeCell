@@ -10,7 +10,13 @@ Game class:
         set cards to a deck
         game.add_cards
         held_card is None
-    
+
+    check_destination
+        for space in spaces:
+            dest is space.valid_dest(held_card):
+            if dest:
+                return dest
+
     create_foundation
         create foundation spaces in upper left
         create region for foundation
@@ -69,9 +75,15 @@ Game class:
     
     handle_Mouse_up:
         if held_card:
-            held_card.return_to_base
-            set held_card to None
-    
+            self.release_card
+
+    release_card:
+        dest_space is game.check_destination
+        if dest_space:
+            dest_space.add_card held card
+        held_card.go_home
+        set held_card to None    
+
     run:
         while game.running:
             game.tick
