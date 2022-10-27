@@ -1,64 +1,102 @@
-"""Hold base space, and tableau, foundation, and free space."""
+from typing import TYPE_CHECKING, Optional
 import pygame
-from constants import CARD_WIDTH, CARD_HEIGHT
-from typing import TYPE_CHECKING
+from constants import CARD_WIDTH, CARD_HEIGHT, STACK_OFFSET
 
 if TYPE_CHECKING:
     from cards import Card
 
-
-STACK_OFFSET = 20  # How far down a card is plaed from the one it's atop.
+SLOT_COLOR = "#1e4632"
 
 
 class Space:
-    """Base object for spaces."""
+    """Base class for spaces."""
 
-    def __init__(self, screen: pygame.surface.Surface, x: int, y: int):
-        """Create a space where a card would be put."""
-        self._screen = screen  # Game window
-        self._x = x  # coordinate of left edge of space
-        self._y = y  # coordinate of upper edge of space
+    def __init__(self, x, y):
+        """Create a space at the given position."""
+        self._rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
+        self._card: Optional["Card"] = None
 
     @property
-    def rectangle(self):
-        """Get rectangle of self at location."""
-        rectangle = pygame.Rect(self._x, self._y, CARD_WIDTH, CARD_HEIGHT)
-        return rectangle
+    def is_empty(self):
+        """If no card in space."""
+        return self._card == None
+
+    @property
+    def rect(self):
+        """Getter for rect"""
+        return self._rect
+
+    def add_card(self, card: "Card"):
+        """Add a card to the space."""
+        self._card = card
+        card.set_space(self)
+
+    def check_for_target(self, cursor_pos: tuple[int, int]):
+        """Returns a card if it exists and the cursor is in position."""
+        if self._rect.collidepoint(cursor_pos) and self._card:
+            return self._card
+
+    def draw(self, screen):
+        """Draw space and contents."""
+        if not self._card:
+            pygame.draw.rect(screen, SLOT_COLOR, self._rect)
+        else:
+            self._card.draw(screen)
+
+    def move(self, location):
+        """Move space and contents to new location."""
+        self._rect.topleft = location
+        if self._card:  # Move card with space if it exists.
+            self._card.move(location)
+
+    def remove_card(self):
+        """Empty the space."""
+        self._card = None
+
+
+class StackSpace(Space):
+    """Space on a card used for stacking."""
+
+    def __init__(self, card: "Card"):
+        """Create the space on top of the card."""
+        self._parent_card = card
+        x, y = self._parent_card.rect.topleft
+        y += STACK_OFFSET
+        super().__init__(x, y)
+
+    def move(self, location: tuple[int, int]):
+        """Move the space and contained cards to new location."""
+        self._rect.topleft = location
+        if self._card:
+            self._card.move(location)
 
 
 class Tableau(Space):
-    """Space in the tableau that holds a card column."""
-
-    def __init__(self, screen, x, y):
-        super().__init__(screen, x, y)
-        self._cards: list[
-            "Card"
-        ] = []  # Cards in the column, left is closest to the base.
+    """Space used at the bottom of tableau."""
 
     @property
-    def highest_y(self):
-        """Highest location a card can be placed."""
-        return self._y + STACK_OFFSET * len(self._cards)
+    def top_card(self):
+        """Return highest card in the tableau stack."""
+        if not self._card:
+            return None
+        top_card = self._card
+        while top_card.above_card:  # While card has card above it
+            top_card = top_card.above_card  # Move to next card
+        return top_card
 
-    def add_card(self, card: "Card"):
-        """Add card to the next space in the column."""
-        card.set_new_base(self._x, self.highest_y)
-        card.return_to_base()
-        # If there is already a card, tell it the new card is on top of it.
-        if len(self._cards):
-            self._cards[-1].above_card = card
-        self._cards.append(card)
+    def stack_card(self, card: "Card"):
+        """Add card to the highest available space in the column."""
+        if self.is_empty:  # If column is empty, do a normal add.
+            self.add_card(card)
+        else:
+            self.top_card.add_card(card)
 
-    def draw_cards(self):
-        """Draw entire column of cards."""
-        for card in self._cards:
-            card.draw(self._screen)
-
-    def get_card_at_position(self, pos: tuple[int, int]):
-        """Get the card at the given position, if it exists."""
-        left_bound = self._x
-        right_bound = left_bound + self.rectangle.width
-        if pos[0] in range(left_bound, right_bound + 1):
-            for card in self._cards[::-1]:
-                if card.point_on_card(pos):
-                    return card
+    def check_for_target(self, cursor_pos: tuple[int, int]):
+        """Check if cursor in tableau column and retrieve card."""
+        if cursor_pos[0] in range(self.rect.left, self.rect.right):
+            target_card = self.top_card
+            while target_card:
+                if target_card.rect.collidepoint(cursor_pos):
+                    return target_card
+                else:
+                    target_card = target_card.below_card

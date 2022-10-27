@@ -1,149 +1,153 @@
-"""Hold main game object and play freecell."""
-import random
-from typing import Optional
+from random import shuffle
+from typing import TYPE_CHECKING
 import pygame
-from cards import Card
 from space import Space, Tableau
-from spritesheet import SpriteSheet
+from cards import Card, create_deck
 from constants import CARD_WIDTH, BUFFER_SIZE
+
 
 BG_COLOR = "#35654d"
 SLOT_COLOR = "#1e4632"
 
 
 class Game:
-    """Main game object."""
+    """Game of freecell."""
 
     def __init__(self):
-        """Set up game."""
+        """Start game."""
         self._screen = self.create_screen()
-        self._sprite_sheet = SpriteSheet()
-        self._foundation: list[Space] = self.create_foundation()
-        self._free_cells: list[Space] = self.create_free()
-        self._tableau: list[Tableau] = self.create_tableau()
-        self._cards = self.create_cards()
-        self.place_cards()
+        self._foundation, self._found_region = self.create_foundation()
+        self._free_cells, self._free_region = self.create_free_cells()
+        self._tableau, self._tab_region = self.create_tableau()
+        self._deck = create_deck()
+        self.deal_cards()
+        self._held_card = None
         self._running = True
-        self._held_card: Optional[Card] = None
-
-    def create_cards(self):
-        """Create the full deck of cards."""
-        cards = []
-        for suit in ["clubs", "diamonds", "hearts", "spades"]:
-            for value in range(1, 14):
-                sprite = self._sprite_sheet.card_sprite(suit, value)
-                card = Card(value, suit, sprite)
-                cards.append(card)
-        return cards
-
-    def create_screen(self):
-        """Create main screen for the game."""
-        screen = pygame.display.set_mode((450, 450))
-        pygame.display.set_caption("Freecell")
-        return screen
 
     def create_foundation(self):
-        """Create foundation spaces on the left side of the screen."""
-        foundations = []
+        """Create foundation spaces and region on the left side of the screen."""
+        foundations: list[Space] = []
         for i in range(4):
             x = BUFFER_SIZE + (CARD_WIDTH + BUFFER_SIZE) * i
             y = BUFFER_SIZE
-            space = Space(self._screen, x, y)
+            space = Space(x, y)
             foundations.append(space)
-        return foundations
+        region = self.create_region(foundations)
+        return foundations, region
 
-    def create_free(self):
+    def create_free_cells(self):
         """Create free cells on the right side of the screen."""
         free_cells = []
         for i in range(4):
             x = self._screen.get_width() - (i + 1) * (BUFFER_SIZE + CARD_WIDTH)
             y = BUFFER_SIZE
-            space = Space(self._screen, x, y)
+            space = Space(x, y)
             free_cells.append(space)
-        return free_cells
+        region = self.create_region(free_cells)
+        return free_cells, region
+
+    def create_region(self, space_list: list[Space]):
+        """Create region for list of spaces. Not for tableau."""
+        x1, y1 = space_list[0].rect.topleft
+        x2, y2 = space_list[-1].rect.bottomright
+        width = x2 - x1
+        height = y2 - y1
+        return pygame.Rect(x1, y1, width, height)
+
+    def create_screen(self):
+        """Create main window for the game."""
+        screen = pygame.display.set_mode((450, 450))
+        pygame.display.set_caption("Freecell")
+        return screen
 
     def create_tableau(self):
-        """Create tableau spaces."""
+        """Create tableau spaces and region."""
         center = self._screen.get_width() // 2
         x = int(center - (3.5 * BUFFER_SIZE + 4 * CARD_WIDTH))
         y = 120
         tableau = []
         for _ in range(8):
-            space = Tableau(self._screen, x, y)
+            space = Tableau(x, y)
             tableau.append(space)
             x += BUFFER_SIZE + CARD_WIDTH
-        return tableau
+        # Since tableau counts cards, entire main area of screen is region.
+        region_height = self._screen.get_height() - y
+        region = pygame.Rect(0, y, self._screen.get_width(), region_height)
+        return tableau, region
+
+    def deal_cards(self):
+        """Deal all cards to the tableau"""
+        shuffle(self._deck)
+        column = 0
+        for card in self._deck:
+            self._tableau[column].stack_card(card)
+            if column < len(self._tableau) - 1:
+                column += 1
+            else:  # Return to first column if last one was reached.
+                column = 0
 
     def draw(self):
-        """Draw the game screen."""
+        """Draw everything to the screen."""
         self._screen.fill(BG_COLOR)  # Reset screen
-        self.draw_board()
-        self.draw_cards()
+        for space in self._foundation + self._free_cells + self._tableau:
+            space.draw(self._screen)
+        if self._held_card:  # Draw held card last so it is always visible.
+            self._held_card.draw(self._screen)
         pygame.display.update()
 
-    def draw_board(self):
-        """Draw the board and the spaces."""
-        space_collections = [self._foundation, self._free_cells, self._tableau]
-        for space_collection in space_collections:
-            for space in space_collection:
-                pygame.draw.rect(self._screen, SLOT_COLOR, space.rectangle)
+    def get_mouse_target(self, cursor_pos):
+        """Check to see if the mouse clicked on anything."""
+        space_lists = [self._foundation, self._free_cells, self._tableau]
+        regions = [self._found_region, self._free_region, self._tab_region]
+        for space_list, region in zip(space_lists, regions):
+            if region.collidepoint(cursor_pos):
+                for space in space_list:
+                    target = space.check_for_target(cursor_pos)
+                    if target:
+                        return target
 
-    def draw_cards(self):
-        """Draw the cards onto the game."""
-        for column in self._tableau:
-            column.draw_cards()
-        if self._held_card:
-            self._held_card.draw(self._screen)
-
-    def get_card_at_position(self, pos: tuple[int, int]):
-        """Get the topmost card at a position, if it exists."""
-        for column in self._tableau:
-            card = column.get_card_at_position(pos)
-            if card:
-                return card
+    def handle_events(self):
+        """Handle all player actions."""
+        for event in pygame.event.get():
+            self.handle_event(event)
 
     def handle_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
-        elif pygame.mouse.get_pressed()[0]:
+        elif event.type == pygame.MOUSEBUTTONDOWN:
             self.handle_mouse_down()
         elif event.type == pygame.MOUSEBUTTONUP:
             self.handle_mouse_up()
 
     def handle_mouse_down(self):
-        """Handle if the player clicked a card."""
+        """Handle if the player clicks down on the mouse."""
         cursor_pos = pygame.mouse.get_pos()
-        if not self._held_card:  # If the player isn't already moving a card
-            card = self.get_card_at_position(cursor_pos)
-            if card:
-                self._held_card = card
-                self._held_card.center_on_point(cursor_pos)
-        else:
-            self._held_card.center_on_point(cursor_pos)
+        if not self._held_card:
+            target = self.get_mouse_target(cursor_pos)
+            if target and type(target) == Card:
+                self._held_card = target
 
     def handle_mouse_up(self):
-        """If the player releases the mouse."""
         if self._held_card:
-            self._held_card.return_to_base()
+            self._held_card.go_home()
             self._held_card = None
 
-    def place_cards(self):
-        """Shuffle cards into the tableau columns."""
-        random.shuffle(self._cards)
-        column = 0
-        for card in self._cards:
-            self._tableau[column].add_card(card)
-            if column < 7:
-                column += 1
-            else:
-                column = 0
-
     def run(self):
-        """Run game until close."""
+        """Run game until it is closed."""
         while self._running:
-            self.draw()
-            for event in pygame.event.get():
-                self.handle_event(event)
+            self.tick()
+
+    def tick(self):
+        """Handle an individual tick of the game."""
+        self.draw()
+        self.handle_events()
+        self.update()
+
+    def update(self):
+        """Update for the current frame."""
+        if self._held_card:
+            cursor_pos = pygame.mouse.get_pos()
+            self._held_card.center_on_point(cursor_pos)
 
 
 if __name__ == "__main__":
