@@ -1,7 +1,7 @@
 from random import shuffle
 from typing import Optional, TYPE_CHECKING
 import pygame
-from space import Space, Tableau
+from space import Space, Foundation, Tableau
 from cards import Card, create_deck
 from constants import CARD_WIDTH, BUFFER_SIZE
 
@@ -28,21 +28,13 @@ class Game:
     def spaces(self):
         return self._foundation + self._free_cells + self._tableau
 
-    def check_destination(self):
-        """Check for a destination for held_card if it exists."""
-        if self._held_card:
-            for space in self.spaces:
-                dest = space.get_valid_dest(self._held_card)
-                if dest:
-                    return dest
-
     def create_foundation(self):
         """Create foundation spaces and region on the left side of the screen."""
         foundations: list[Space] = []
         x = BUFFER_SIZE
         y = BUFFER_SIZE
         for i in range(4):
-            space = Space(x, y)
+            space = Foundation(x, y)
             foundations.append(space)
             x += BUFFER_SIZE + CARD_WIDTH
         region = self.create_region(foundations)
@@ -148,18 +140,6 @@ class Game:
         if self._held_card:
             self._held_card.release(self.spaces)
             self._held_card = None
-
-    """
-    def release_card(self):
-        if not self._held_card:
-            raise Exception("Method release_card was called w/o held card.")
-        dest_space = self.check_destination()
-        # If available space for card to go:
-        if dest_space and dest_space != self._held_card._home_space:
-            dest_space.add_card(self._held_card)
-        self._held_card.go_home()
-        self._held_card = None
-    """
 
     def run(self):
         """Run game until it is closed."""

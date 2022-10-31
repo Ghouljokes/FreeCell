@@ -54,14 +54,35 @@ class Space:
         if self.card:  # Move card with space if it exists.
             self.card.move(location)
 
-    def remove_card(self):
-        """Remove the highest card in the space."""
-        if self.card:
-            self._cards.pop()
+    def remove_card(self, card):
+        """Remove the given card from the space."""
+        if card in self._cards:
+            self._cards.remove(card)
 
     def get_valid_dest(self, card: "Card"):
         """If space can hold card, return the space."""
         if not self.card and self.rect.colliderect(card.rect):
+            return self
+
+
+class Foundation(Space):
+    """Space used for the foundations."""
+
+    def draw(self, screen):
+        """Personalized function so cards under dragged card will still show."""
+        for card in self._cards[::-1]:  # Starting from the top
+            if not card.is_clicked:
+                card.draw(screen)
+                return
+        pygame.draw.rect(screen, SLOT_COLOR, self.rect)
+
+    def get_valid_dest(self, card: "Card"):
+        """If suitable, return space."""
+        if (
+            not card.above_card
+            and self.rect.colliderect(card.rect)
+            and card.piles_up(self.card)
+        ):
             return self
 
 

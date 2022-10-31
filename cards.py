@@ -17,7 +17,7 @@ class Card(pygame.sprite.Sprite):
         self._home_space: Optional["Space"] = None
         self._stack_space = StackSpace(self)
         self._anchor_point = (0, 0)
-        self._is_clicked = False
+        self.is_clicked = False
 
     def __repr__(self):
         return f"{self._value} of {self._suit}"
@@ -55,7 +55,7 @@ class Card(pygame.sprite.Sprite):
     def click(self, cursor_pos):
         """Handle card becoming held."""
         self.set_anchor(cursor_pos)
-        self._is_clicked = True
+        self.is_clicked = True
 
     def drag(self, cursor_pos):
         """Drag card so anchor point is at cursor_pos"""
@@ -84,6 +84,12 @@ class Card(pygame.sprite.Sprite):
         stack_location = (location[0], location[1] + STACK_OFFSET)
         self._stack_space.move(stack_location)
 
+    def piles_up(self, card: Optional["Card"]):
+        if not card:  # If no card, check if ace.
+            return self._value == 1
+        else:
+            return card._suit == self._suit and card._value == self._value - 1
+
     def release(self, spaces: list["Space"]):
         """Release card into an available space from spaces."""
         own_base_space = self.stack_base
@@ -97,7 +103,7 @@ class Card(pygame.sprite.Sprite):
                 dest.add_card(self)
                 break
         self.go_home()
-        self._is_clicked = False
+        self.is_clicked = False
 
     def set_anchor(self, cursor_pos):
         """Set an anchor point on the card based off cursor_pos.
@@ -109,7 +115,7 @@ class Card(pygame.sprite.Sprite):
     def set_space(self, space: Space):
         """Set new base space and move card there."""
         if self._home_space:
-            self._home_space.remove_card()
+            self._home_space.remove_card(self)
         self._home_space = space
 
 
