@@ -15,7 +15,7 @@ class Space:
             return last card in self.cards
 
     add_card(card):
-        set card's space as self
+        card.set_base(self)
         self.cards.append(card)
 
     check_for_target(cursor location):
@@ -28,11 +28,11 @@ class Space:
         if not empty:
             space.card.draw 
 
+    get_valid_dest(card):
+        return space.isempty and space intersects card
+
     remove_card:
         remove last entry in self.cards
-
-    valid_dest(card):
-        return space.isempty and space intersects card***
 
 
 class StackSpace(space):
@@ -57,7 +57,7 @@ class Foundation(space):
 
 
 
-    valid_dest(card):
+    get_valid_dest(card):
         if empty or given card is same suit and one heigher, AND spaces intersect, AND card isn't stacked:
             return self
 ***     
@@ -88,11 +88,12 @@ class Tableau(Space):
                 else:
                     target card = card.below_card
 
-    stack_card(card):
-        self.top_space.add_card(card)
-    
-    valid_dest(card):
+    get_valid_dest(card):
         if self.card:
             return top_space.valid_dest(card)
         else:
-            return super().valid_Dest(card)
+            return super().get_valid_Dest(card)
+
+    stack_card(card):
+        self.top_space.add_card(card)
+    

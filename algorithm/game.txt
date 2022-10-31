@@ -11,6 +11,10 @@ Game class:
         game.add_cards
         held_card is None
 
+    @property
+    spaces:
+        return all spaces on the game board.
+
     check_destination
         for space in spaces:
             dest is space.valid_dest(held_card):
@@ -34,6 +38,7 @@ Game class:
         start at first tableau
         for card in deck:
             tableau.stack_card(card)
+            card.go_home
             if not last tab:
                 move to next tab
             else:
@@ -71,18 +76,12 @@ Game class:
         if target:
             if target is card:
                 held_card = card
-                target.get_clicked
+                target.click(cursor position)
     
-    handle_Mouse_up:
+    handle_mouse_up:
         if held_card:
-            self.release_card
-
-    release_card:
-        dest_space is game.check_destination
-        if dest_space:
-            dest_space.add_card held card
-        held_card.go_home
-        set held_card to None    
+            held_card.release(self.spaces)
+            set self.held_card to None
 
     run:
         while game.running:

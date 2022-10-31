@@ -17,6 +17,10 @@ class Card(pygame.sprite.Sprite):
         self._home_space: Optional["Space"] = None
         self._stack_space = StackSpace(self)
         self._anchor_point = (0, 0)
+        self._is_clicked = False
+
+    def __repr__(self):
+        return f"{self._value} of {self._suit}"
 
     @property
     def above_card(self):
@@ -30,6 +34,14 @@ class Card(pygame.sprite.Sprite):
             return self._home_space._parent_card
 
     @property
+    def stack_base(self):
+        """Get home_space of lowest card in stack."""
+        lowest_card = self
+        while lowest_card.below_card:
+            lowest_card = lowest_card.below_card
+        return lowest_card._home_space
+
+    @property
     def stack_space(self):
         """Getter for stackspace."""
         return self._stack_space
@@ -39,6 +51,11 @@ class Card(pygame.sprite.Sprite):
         self.rect.center = point
         # Since move handles stuff besides changing the rect, call that.
         self.move(self.rect.topleft)
+
+    def click(self, cursor_pos):
+        """Handle card becoming held."""
+        self.set_anchor(cursor_pos)
+        self._is_clicked = True
 
     def drag(self, cursor_pos):
         """Drag card so anchor point is at cursor_pos"""
@@ -56,24 +73,31 @@ class Card(pygame.sprite.Sprite):
         if self.above_card:  # If card above this one
             self.above_card.draw(screen)
 
-    def get_clicked(self, cursor_pos):
-        """Handle card becoming held."""
-        self.set_anchor(cursor_pos)
-        if self._home_space:
-            self._home_space.remove_card()
-
     def go_home(self):
         """Move card back to the home space."""
         if self._home_space:
             self.move(self._home_space.rect.topleft)
-            if self not in self._home_space._cards:
-                self._home_space._cards.append(self)
 
     def move(self, location: tuple[int, int]):
         """Move card to new location."""
         self.rect.topleft = location
         stack_location = (location[0], location[1] + STACK_OFFSET)
         self._stack_space.move(stack_location)
+
+    def release(self, spaces: list["Space"]):
+        """Release card into an available space from spaces."""
+        own_base_space = self.stack_base
+        for space in spaces:
+            # Prevent trying to move into own column, which could result in
+            # infinite recursion as the stack tries to move to the top of itself.
+            if space == own_base_space:
+                continue
+            dest = space.get_valid_dest(self)
+            if dest:
+                dest.add_card(self)
+                break
+        self.go_home()
+        self._is_clicked = False
 
     def set_anchor(self, cursor_pos):
         """Set an anchor point on the card based off cursor_pos.
@@ -87,7 +111,6 @@ class Card(pygame.sprite.Sprite):
         if self._home_space:
             self._home_space.remove_card()
         self._home_space = space
-        self.go_home()
 
 
 def create_deck():

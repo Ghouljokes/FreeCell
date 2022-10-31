@@ -59,7 +59,7 @@ class Space:
         if self.card:
             self._cards.pop()
 
-    def valid_dest(self, card: "Card"):
+    def get_valid_dest(self, card: "Card"):
         """If space can hold card, return the space."""
         if not self.card and self.rect.colliderect(card.rect):
             return self
@@ -74,6 +74,9 @@ class StackSpace(Space):
         x, y = self._parent_card.rect.topleft
         y += STACK_OFFSET
         super().__init__(x, y)
+
+    def __repr__(self):
+        return f"{self._parent_card}'s stack_space"
 
     def move(self, location: tuple[int, int]):
         """Move the space and contained cards to new location."""
@@ -110,13 +113,13 @@ class Tableau(Space):
                 else:
                     target_card = target_card.below_card
 
+    def get_valid_dest(self, card):
+        """Check validity of top card in the column."""
+        if self.card:
+            return self.top_space.get_valid_dest(card)
+        # If empty, just check as a normal space.
+        return super().get_valid_dest(card)
+
     def stack_card(self, card: "Card"):
         """Add card to the highest available space in the column."""
         self.top_space.add_card(card)
-
-    def valid_dest(self, card):
-        """Check validity of top card in the column."""
-        if self.card:
-            return self.top_space.valid_dest(card)
-        # If empty, just check as a normal space.
-        return super().valid_dest(card)

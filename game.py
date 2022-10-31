@@ -32,7 +32,7 @@ class Game:
         """Check for a destination for held_card if it exists."""
         if self._held_card:
             for space in self.spaces:
-                dest = space.valid_dest(self._held_card)
+                dest = space.get_valid_dest(self._held_card)
                 if dest:
                     return dest
 
@@ -95,6 +95,7 @@ class Game:
         column = 0  # To iterate through columns
         for card in self._deck:
             self._tableau[column].stack_card(card)
+            card.go_home()
             if column < len(self._tableau) - 1:
                 column += 1
             else:  # Return to first column if last one was reached.
@@ -140,15 +141,16 @@ class Game:
             target = self.get_mouse_target(cursor_pos)
             if target and type(target) == Card:
                 self._held_card = target
-                target.get_clicked(cursor_pos)
+                target.click(cursor_pos)
 
     def handle_mouse_up(self):
         """Handle event where mouse is released."""
         if self._held_card:
-            self.release_card()
+            self._held_card.release(self.spaces)
+            self._held_card = None
 
+    """
     def release_card(self):
-        """Release held card."""
         if not self._held_card:
             raise Exception("Method release_card was called w/o held card.")
         dest_space = self.check_destination()
@@ -157,6 +159,7 @@ class Game:
             dest_space.add_card(self._held_card)
         self._held_card.go_home()
         self._held_card = None
+    """
 
     def run(self):
         """Run game until it is closed."""
