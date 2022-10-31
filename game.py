@@ -1,7 +1,7 @@
 from random import shuffle
 from typing import Optional, TYPE_CHECKING
 import pygame
-from space import Space, Foundation, Tableau
+from space import Space, Foundation, Tableau, FreeCell
 from cards import Card, create_deck
 from constants import CARD_WIDTH, BUFFER_SIZE
 
@@ -46,7 +46,7 @@ class Game:
         for i in range(4):
             x = self._screen.get_width() - (i + 1) * (BUFFER_SIZE + CARD_WIDTH)
             y = BUFFER_SIZE
-            space = Space(x, y)
+            space = FreeCell(x, y)
             free_cells.append(space)
         free_cells.reverse()  # So the list goes left to right.
         region = self.create_region(free_cells)

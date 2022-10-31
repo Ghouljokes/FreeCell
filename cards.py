@@ -4,6 +4,13 @@ import pygame
 from constants import STACK_OFFSET
 from space import StackSpace, Space
 
+SUIT_COLORS = {
+    "clubs": "black",
+    "diamonds": "red",
+    "hearts": "red",
+    "spades": "black",
+}
+
 
 class Card(pygame.sprite.Sprite):
     """Playing card."""
@@ -32,6 +39,11 @@ class Card(pygame.sprite.Sprite):
         """Get card this card is atop, if it exists."""
         if self._home_space and type(self._home_space) == StackSpace:
             return self._home_space._parent_card
+
+    @property
+    def color(self):
+        """Get color of the suit."""
+        return SUIT_COLORS[self._suit]
 
     @property
     def stack_base(self):
@@ -117,6 +129,10 @@ class Card(pygame.sprite.Sprite):
         if self._home_space:
             self._home_space.remove_card(self)
         self._home_space = space
+
+    def stacks_down(self, card: "Card"):
+        """Check if card stacks down from given one."""
+        return self.color != card.color and self._value == card._value - 1
 
 
 def create_deck():

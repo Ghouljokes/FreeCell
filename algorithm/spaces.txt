@@ -35,20 +35,6 @@ class Space:
         remove card from self.cards if card is there.
 
 
-class StackSpace(space):
-    attributes:
-        parent_card, cards, rect
-
-    create_space(card):
-        set parent_card to card variable
-        position is parent_card's topleft offset by the stack offset
-        Space.__init__(position)
-
-    def move(location):
-        set rect to new location
-        if card in space, move card along with space.
-
-
 class Foundation(space):
 
     draw(screen):
@@ -62,6 +48,31 @@ class Foundation(space):
         if card isn't stacked and card.piles_up(self.card) and rects intersect:
             return self
    
+
+class FreeCell(space):
+
+    get_valid_dest(card):
+        if card isn't stacked:
+            return super().get_valid_dest(card)
+
+class StackSpace(space):
+    attributes:
+        parent_card, cards, rect
+
+    create_space(card):
+        set parent_card to card variable
+        position is parent_card's topleft offset by the stack offset
+        Space.__init__(position)
+
+    def get_valid_dest(card):
+        if space intersects card and card.stacks_down(self.parent_card)
+            return self
+
+    def move(location):
+        set rect to new location
+        if card in space, move card along with space.
+
+
 
 class Tableau(Space):
 

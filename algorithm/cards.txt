@@ -73,6 +73,8 @@ class Card(sprite):
         remove card from old space
         set home_space to space
 
+    stacks_downward(card):
+        return self.color != card.color and self.value = card.value - 1
 
 
 

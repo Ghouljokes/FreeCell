@@ -86,6 +86,15 @@ class Foundation(Space):
             return self
 
 
+class FreeCell(Space):
+    """Free cell space."""
+
+    def get_valid_dest(self, card: "Card"):
+        """Like base get_valid_dest, except card must not be stacked."""
+        if not card.above_card:
+            return super().get_valid_dest(card)
+
+
 class StackSpace(Space):
     """Space on a card used for stacking."""
 
@@ -98,6 +107,11 @@ class StackSpace(Space):
 
     def __repr__(self):
         return f"{self._parent_card}'s stack_space"
+
+    def get_valid_dest(self, card: "Card"):
+        """Return self if card can stack down."""
+        if self.rect.colliderect(card.rect) and card.stacks_down(self._parent_card):
+            return self
 
     def move(self, location: tuple[int, int]):
         """Move the space and contained cards to new location."""
