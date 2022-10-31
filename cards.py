@@ -21,7 +21,7 @@ class Card(pygame.sprite.Sprite):
     @property
     def above_card(self):
         """Card above this one in stack, if it exists."""
-        return self._stack_space._card
+        return self._stack_space.card
 
     @property
     def below_card(self):
@@ -33,10 +33,6 @@ class Card(pygame.sprite.Sprite):
     def stack_space(self):
         """Getter for stackspace."""
         return self._stack_space
-
-    def add_card(self, card):
-        """Place a card into the stack space."""
-        self._stack_space.add_card(card)
 
     def center_on_point(self, point):
         """Move the card to be centered on the location."""
@@ -70,7 +66,8 @@ class Card(pygame.sprite.Sprite):
         """Move card back to the home space."""
         if self._home_space:
             self.move(self._home_space.rect.topleft)
-            self._home_space.set_card(self)
+            if self not in self._home_space._cards:
+                self._home_space._cards.append(self)
 
     def move(self, location: tuple[int, int]):
         """Move card to new location."""

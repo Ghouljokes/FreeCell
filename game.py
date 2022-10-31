@@ -39,11 +39,12 @@ class Game:
     def create_foundation(self):
         """Create foundation spaces and region on the left side of the screen."""
         foundations: list[Space] = []
+        x = BUFFER_SIZE
+        y = BUFFER_SIZE
         for i in range(4):
-            x = BUFFER_SIZE + (CARD_WIDTH + BUFFER_SIZE) * i
-            y = BUFFER_SIZE
             space = Space(x, y)
             foundations.append(space)
+            x += BUFFER_SIZE + CARD_WIDTH
         region = self.create_region(foundations)
         return foundations, region
 
@@ -55,6 +56,7 @@ class Game:
             y = BUFFER_SIZE
             space = Space(x, y)
             free_cells.append(space)
+        free_cells.reverse()  # So the list goes left to right.
         region = self.create_region(free_cells)
         return free_cells, region
 
@@ -74,7 +76,7 @@ class Game:
 
     def create_tableau(self):
         """Create tableau spaces and region."""
-        center = self._screen.get_width() // 2
+        center = self._screen.get_rect().centerx
         x = int(center - (3.5 * BUFFER_SIZE + 4 * CARD_WIDTH))
         y = 120
         tableau = []
