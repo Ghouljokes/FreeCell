@@ -11,6 +11,7 @@ Game class:
         game.add_cards
         held_card is None
 
+
     @property
     spaces:
         return all spaces on the game board.
@@ -74,7 +75,9 @@ Game class:
     handle_mouse_down:
         game.get_mouse_target
         if target:
-            if target is card:
+***
+            if target is card and card.is_valid_stack:
+***
                 held_card = card
                 target.click(cursor position)
     

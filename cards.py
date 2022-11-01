@@ -1,5 +1,5 @@
 from spritesheet import SpriteSheet
-from typing import Optional, Type
+from typing import Optional
 import pygame
 from constants import STACK_OFFSET
 from space import StackSpace, Space
@@ -19,8 +19,8 @@ class Card(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self._value = value
         self._suit = suit
-        self.image: pygame.surface.Surface = image
-        self.rect: pygame.rect.Rect = self.image.get_rect()  # Used for drawing
+        self.image: "pygame.surface.Surface" = image
+        self.rect: "pygame.rect.Rect" = self.image.get_rect()
         self._home_space: Optional["Space"] = None
         self._stack_space = StackSpace(self)
         self._anchor_point = (0, 0)
@@ -37,8 +37,9 @@ class Card(pygame.sprite.Sprite):
     @property
     def below_card(self):
         """Get card this card is atop, if it exists."""
-        if self._home_space and type(self._home_space) == StackSpace:
-            return self._home_space._parent_card
+        if self._home_space and isinstance(self._home_space, StackSpace):
+            return self._home_space.parent_card
+        return None
 
     @property
     def color(self):
@@ -46,17 +47,32 @@ class Card(pygame.sprite.Sprite):
         return SUIT_COLORS[self._suit]
 
     @property
+    def home_space(self):
+        """Getter for home."""
+        return self._home_space
+
+    @property
     def stack_base(self):
         """Get home_space of lowest card in stack."""
         lowest_card = self
         while lowest_card.below_card:
             lowest_card = lowest_card.below_card
-        return lowest_card._home_space
+        return lowest_card.home_space
 
     @property
     def stack_space(self):
         """Getter for stackspace."""
         return self._stack_space
+
+    @property
+    def suit(self):
+        """Getter for suit."""
+        return self._suit
+
+    @property
+    def value(self):
+        """Getter for value."""
+        return self._value
 
     def center_on_point(self, point):
         """Move the card to be centered on the location."""
@@ -78,7 +94,7 @@ class Card(pygame.sprite.Sprite):
         new_position = self.rect.left + dx, self.rect.top + dy
         self.move(new_position)
 
-    def draw(self, screen: pygame.surface.Surface):
+    def draw(self, screen: "pygame.surface.Surface"):
         """Draw the card's sprite, then draw the sprite of any cards above."""
         dest = self.rect.topleft
         screen.blit(self.image, dest)
@@ -90,6 +106,20 @@ class Card(pygame.sprite.Sprite):
         if self._home_space:
             self.move(self._home_space.rect.topleft)
 
+    def in_range(self, space: "Space"):
+        """Determine if card overlaps a space."""
+        return self.rect.colliderect(space.rect)
+
+    def is_valid_stack(self):
+        """Check if card forms a stack of alternating downward cards."""
+        checking_card = self
+        while checking_card.above_card:
+            above_card = checking_card.above_card
+            if not above_card.stacks_down(checking_card):
+                return False
+            checking_card = above_card
+        return True
+
     def move(self, location: tuple[int, int]):
         """Move card to new location."""
         self.rect.topleft = location
@@ -99,23 +129,22 @@ class Card(pygame.sprite.Sprite):
     def piles_up(self, card: Optional["Card"]):
         if not card:  # If no card, check if ace.
             return self._value == 1
-        else:
-            return card._suit == self._suit and card._value == self._value - 1
+        return card.suit == self._suit and card.value == self._value - 1
 
     def release(self, spaces: list["Space"]):
         """Release card into an available space from spaces."""
+        self.is_clicked = False
         own_base_space = self.stack_base
         for space in spaces:
             # Prevent trying to move into own column, which could result in
-            # infinite recursion as the stack tries to move to the top of itself.
+            # infinite recursion as stack tries to move to the top of itself.
             if space == own_base_space:
                 continue
             dest = space.get_valid_dest(self)
             if dest:
-                dest.add_card(self)
-                break
+                self.switch_space(dest)
+                return
         self.go_home()
-        self.is_clicked = False
 
     def set_anchor(self, cursor_pos):
         """Set an anchor point on the card based off cursor_pos.
@@ -125,14 +154,20 @@ class Card(pygame.sprite.Sprite):
         self._anchor_point = anchor_x, anchor_y
 
     def set_space(self, space: Space):
-        """Set new base space and move card there."""
+        """Set new base space and move card there.
+        TRY NOT TO CALL, USE THE SPACE'S ADD METHOD INSTEAD."""
         if self._home_space:
             self._home_space.remove_card(self)
         self._home_space = space
 
     def stacks_down(self, card: "Card"):
         """Check if card stacks down from given one."""
-        return self.color != card.color and self._value == card._value - 1
+        return self.color != card.color and self._value == card.value - 1
+
+    def switch_space(self, space: "Space"):
+        """Send the card to a new space."""
+        space.add_card(self)
+        self.go_home()
 
 
 def create_deck():

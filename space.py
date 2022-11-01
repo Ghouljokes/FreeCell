@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 import pygame
 from constants import CARD_WIDTH, CARD_HEIGHT, STACK_OFFSET
 
@@ -21,11 +21,7 @@ class Space:
         """Return the last card in self.cards"""
         if len(self._cards) > 0:
             return self._cards[-1]
-
-    @property
-    def is_empty(self):
-        """If no card in space."""
-        return len(self._cards) == 0
+        return None
 
     @property
     def rect(self):
@@ -39,8 +35,9 @@ class Space:
 
     def check_for_target(self, cursor_pos: tuple[int, int]):
         """Returns a card if it exists and the cursor is in position."""
-        if self._rect.collidepoint(cursor_pos) and self.card:
+        if self._rect.collidepoint(cursor_pos):
             return self.card
+        return None
 
     def draw(self, screen):
         """Draw space and contents."""
@@ -61,15 +58,16 @@ class Space:
 
     def get_valid_dest(self, card: "Card"):
         """If space can hold card, return the space."""
-        if not self.card and self.rect.colliderect(card.rect):
+        if not self.card and card.in_range(self):
             return self
+        return None
 
 
 class Foundation(Space):
     """Space used for the foundations."""
 
     def draw(self, screen):
-        """Personalized function so cards under dragged card will still show."""
+        """Personalized function so cards under dragged card will show."""
         for card in self._cards[::-1]:  # Starting from the top
             if not card.is_clicked:
                 card.draw(screen)
@@ -78,12 +76,9 @@ class Foundation(Space):
 
     def get_valid_dest(self, card: "Card"):
         """If suitable, return space."""
-        if (
-            not card.above_card
-            and self.rect.colliderect(card.rect)
-            and card.piles_up(self.card)
-        ):
+        if card.in_range(self) and card.piles_up(self.card) and not card.above_card:
             return self
+        return None
 
 
 class FreeCell(Space):
@@ -93,6 +88,7 @@ class FreeCell(Space):
         """Like base get_valid_dest, except card must not be stacked."""
         if not card.above_card:
             return super().get_valid_dest(card)
+        return None
 
 
 class StackSpace(Space):
@@ -108,10 +104,16 @@ class StackSpace(Space):
     def __repr__(self):
         return f"{self._parent_card}'s stack_space"
 
+    @property
+    def parent_card(self):
+        """Getter for parent."""
+        return self._parent_card
+
     def get_valid_dest(self, card: "Card"):
         """Return self if card can stack down."""
-        if self.rect.colliderect(card.rect) and card.stacks_down(self._parent_card):
+        if card.in_range(self) and card.stacks_down(self._parent_card):
             return self
+        return None
 
     def move(self, location: tuple[int, int]):
         """Move the space and contained cards to new location."""
@@ -130,7 +132,7 @@ class Tableau(Space):
         if top_card:
             while top_card.above_card:  # While card has card above it
                 top_card = top_card.above_card
-            return top_card
+        return top_card
 
     @property
     def top_space(self):
@@ -145,8 +147,8 @@ class Tableau(Space):
             while target_card:
                 if target_card.rect.collidepoint(cursor_pos):
                     return target_card
-                else:
-                    target_card = target_card.below_card
+                target_card = target_card.below_card
+        return None
 
     def get_valid_dest(self, card):
         """Check validity of top card in the column."""

@@ -1,5 +1,5 @@
 from random import shuffle
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 import pygame
 from space import Space, Foundation, Tableau, FreeCell
 from cards import Card, create_deck
@@ -29,11 +29,11 @@ class Game:
         return self._foundation + self._free_cells + self._tableau
 
     def create_foundation(self):
-        """Create foundation spaces and region on the left side of the screen."""
+        """Create foundation spaces and region on left side of the screen."""
         foundations: list[Space] = []
         x = BUFFER_SIZE
         y = BUFFER_SIZE
-        for i in range(4):
+        for _ in range(4):
             space = Foundation(x, y)
             foundations.append(space)
             x += BUFFER_SIZE + CARD_WIDTH
@@ -112,6 +112,7 @@ class Game:
                     target = space.check_for_target(cursor_pos)
                     if target:
                         return target
+        return None
 
     def handle_events(self):
         """Handle all player actions."""
@@ -131,7 +132,7 @@ class Game:
         cursor_pos = pygame.mouse.get_pos()
         if not self._held_card:
             target = self.get_mouse_target(cursor_pos)
-            if target and type(target) == Card:
+            if isinstance(target, Card) and target.is_valid_stack():
                 self._held_card = target
                 target.click(cursor_pos)
 

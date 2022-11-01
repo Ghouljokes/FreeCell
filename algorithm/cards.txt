@@ -46,6 +46,14 @@ class Card(sprite):
         if home_space:
             self.move(home_space.rect.topleft)
 
+    is_valid_stack:
+        set checking_card to self
+        while checking_card.above_card:
+            if not above_card.stacks_downward(checking_card):
+                return False
+            checking_card = checking_card.above_card
+        return True
+
     move(location):
         move rectangle to new location
         move stack_space to be offset down from rectangle's new location
@@ -55,16 +63,16 @@ class Card(sprite):
         Else, return card suit same as self suit and card value one less than self value.
 
     release(spaces):
+        set is_clicked to False
         base_space = self.stack_base
         for space in spaces:
             if space == base_space:
                 continue
             dest = space.get_valid_dest(self)
             if dest:
-                dest.add_card(self)
-                break
+                self.switch_space(dest)
+                return
         self.go_home
-        set is_clicked to False
 
     set_anchor(cursor_pos):
         set the anchor point as coords relative to topleft
@@ -75,6 +83,11 @@ class Card(sprite):
 
     stacks_downward(card):
         return self.color != card.color and self.value = card.value - 1
+
+    switch_space(space):
+        space.add_card(self)
+        self.go_home
+
 
 
 
