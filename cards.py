@@ -141,7 +141,7 @@ class Card(pygame.sprite.Sprite):
             if space == own_base_space:
                 continue
             dest = space.get_valid_dest(self)
-            if dest:
+            if dest and self.in_range(dest):
                 self.switch_space(dest)
                 return
         self.go_home()

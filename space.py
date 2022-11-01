@@ -58,7 +58,7 @@ class Space:
 
     def get_valid_dest(self, card: "Card"):
         """If space can hold card, return the space."""
-        if not self.card and card.in_range(self):
+        if not self.card:
             return self
         return None
 
@@ -76,7 +76,7 @@ class Foundation(Space):
 
     def get_valid_dest(self, card: "Card"):
         """If suitable, return space."""
-        if card.in_range(self) and card.piles_up(self.card) and not card.above_card:
+        if card.piles_up(self.card) and not card.above_card:
             return self
         return None
 
@@ -111,7 +111,7 @@ class StackSpace(Space):
 
     def get_valid_dest(self, card: "Card"):
         """Return self if card can stack down."""
-        if card.in_range(self) and card.stacks_down(self._parent_card):
+        if card.stacks_down(self._parent_card):
             return self
         return None
 

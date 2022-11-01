@@ -10,11 +10,20 @@ Game class:
         set cards to a deck
         game.add_cards
         held_card is None
+        last_click = now
+
 
 
     @property
     spaces:
         return all spaces on the game board.
+
+    check_click_type(target):
+        set click_time to now
+        time_between is click_time - self.last_click_time
+        if time_between <= DOUBLECLICKTIME and target == self.last_target:
+            return "double"
+        return "single"
 
     check_destination
         for space in spaces:
@@ -73,14 +82,29 @@ Game class:
             game.handle_mouse_up
     
     handle_mouse_down:
-        game.get_mouse_target
+        set target to game.get_mouse_target
         if target:
-***
-            if target is card and card.is_valid_stack:
-***
-                held_card = card
-                target.click(cursor position)
-    
+            click_type = self.check_click_type(target)
+            if single click:
+                self.handle_single_click(target)
+            elif double click:
+                self.handle_double_click(target)
+
+
+    handle_single_click(target):
+        if target is card and card.is_valid_stack:
+            self.held_card = target
+            set self.last_click to now
+            set self.last_target to target
+            target.click(cursor position)
+
+    handle_double_click(target):
+        if target is card and target.is_valid_stack:
+            for space in foundations + tableau + freecells:
+                dest = space.get_valid_dest(target)
+                if dest:
+                    target.switch_space(dest)
+
     handle_mouse_up:
         if held_card:
             held_card.release(self.spaces)

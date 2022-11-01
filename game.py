@@ -1,5 +1,6 @@
 from random import shuffle
 from typing import Optional
+import time
 import pygame
 from space import Space, Foundation, Tableau, FreeCell
 from cards import Card, create_deck
@@ -8,6 +9,9 @@ from constants import CARD_WIDTH, BUFFER_SIZE
 
 BG_COLOR = "#35654d"
 SLOT_COLOR = "#1e4632"
+
+# How close clicks have to be in seconds to count as double
+DOUBLECLICKTIME = 0.5
 
 
 class Game:
@@ -23,10 +27,21 @@ class Game:
         self.deal_cards()
         self._held_card: Optional["Card"] = None
         self._running = True
+        self._last_click_time = time.time()
+        self._last_target = None
 
     @property
     def spaces(self):
         return self._foundation + self._free_cells + self._tableau
+
+    def check_click_type(self, target):
+        """Check if a click on a target would be single or double."""
+        click_time = time.time()
+        time_between = click_time - self._last_click_time
+        # Needs to be on the same target to count
+        if time_between <= DOUBLECLICKTIME and target == self._last_target:
+            return "double"
+        return "single"
 
     def create_foundation(self):
         """Create foundation spaces and region on left side of the screen."""
@@ -130,11 +145,31 @@ class Game:
     def handle_mouse_down(self):
         """Handle if the player clicks down on the mouse."""
         cursor_pos = pygame.mouse.get_pos()
-        if not self._held_card:
-            target = self.get_mouse_target(cursor_pos)
-            if isinstance(target, Card) and target.is_valid_stack():
-                self._held_card = target
-                target.click(cursor_pos)
+        target = self.get_mouse_target(cursor_pos)
+        if target:
+            click_type = self.check_click_type(target)
+            if click_type == "single":
+                self.handle_single_click(target)
+            elif click_type == "double":
+                self.handle_double_click(target)
+
+    def handle_single_click(self, target):
+        """Pick up the target."""
+        if isinstance(target, Card) and target.is_valid_stack():
+            self._held_card = target
+            self._last_click_time = time.time()
+            self._last_target = target
+            target.click(pygame.mouse.get_pos())
+
+    def handle_double_click(self, target):
+        """Automove the target if it is a card."""
+        if isinstance(target, Card) and target.is_valid_stack():
+            # Check found first, then tab, then free cells last.
+            for space in self._foundation + self._tableau + self._free_cells:
+                dest = space.get_valid_dest(target)
+                if dest:
+                    target.switch_space(dest)
+                    return
 
     def handle_mouse_up(self):
         """Handle event where mouse is released."""

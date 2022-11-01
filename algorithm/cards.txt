@@ -69,7 +69,7 @@ class Card(sprite):
             if space == base_space:
                 continue
             dest = space.get_valid_dest(self)
-            if dest:
+            if dest and in_range(dest):
                 self.switch_space(dest)
                 return
         self.go_home
