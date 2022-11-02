@@ -29,6 +29,7 @@ class Game:
         self._running = True
         self._last_click_time = time.time()
         self._last_target = None
+        self._moves: list[dict] = []
 
     @property
     def spaces(self):
@@ -42,6 +43,18 @@ class Game:
         if time_between <= DOUBLECLICKTIME and target == self._last_target:
             return "double"
         return "single"
+
+    def check_release_destination(self, card: "Card"):
+        """Check if card can be released into any space and return space."""
+        stack_base = card.stack_base
+        for space in self.spaces:
+            # Keep card from trying to move to top of its own stack.
+            if space == stack_base:
+                continue
+            dest = space.get_valid_dest(card)
+            if dest and card.in_range(dest):
+                return dest
+        return None
 
     def create_foundation(self):
         """Create foundation spaces and region on left side of the screen."""
@@ -141,6 +154,8 @@ class Game:
             self.handle_mouse_down()
         elif event.type == pygame.MOUSEBUTTONUP:
             self.handle_mouse_up()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_z:
+            self.undo()
 
     def handle_mouse_down(self):
         """Handle if the player clicks down on the mouse."""
@@ -168,14 +183,24 @@ class Game:
             for space in self._foundation + self._tableau + self._free_cells:
                 dest = space.get_valid_dest(target)
                 if dest:
-                    target.switch_space(dest)
+                    self.make_move(target, dest)
                     return
 
     def handle_mouse_up(self):
         """Handle event where mouse is released."""
         if self._held_card:
-            self._held_card.release(self.spaces)
+            dest = self.check_release_destination(self._held_card)
+            if dest:
+                self.make_move(self._held_card, dest)
+            self._held_card.release()
             self._held_card = None
+
+    def make_move(self, card: "Card", space: "Space", logging=True):
+        """Move card to a new space. Logging determines if it is added to move list."""
+        move_dict = {"card": card, "source": card._home_space, "dest": space}
+        card.switch_space(space)
+        if logging:
+            self._moves.append(move_dict)
 
     def run(self):
         """Run game until it is closed."""
@@ -187,6 +212,14 @@ class Game:
         self.draw()
         self.handle_events()
         self.update()
+
+    def undo(self):
+        """Undo the last move in the move list."""
+        if self._moves:  # If any moves have been made.
+            last_move = self._moves[-1]
+            card, dest = last_move["card"], last_move["source"]
+            self.make_move(card, dest, False)  # Reverse the move w/o logging.
+            self._moves.pop()  # Remove undone move.
 
     def update(self):
         """Update for the current frame."""

@@ -64,14 +64,6 @@ class Card(sprite):
 
     release(spaces):
         set is_clicked to False
-        base_space = self.stack_base
-        for space in spaces:
-            if space == base_space:
-                continue
-            dest = space.get_valid_dest(self)
-            if dest and in_range(dest):
-                self.switch_space(dest)
-                return
         self.go_home
 
     set_anchor(cursor_pos):

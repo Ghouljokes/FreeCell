@@ -11,6 +11,7 @@ Game class:
         game.add_cards
         held_card is None
         last_click = now
+        moves = []
 
 
 
@@ -25,11 +26,15 @@ Game class:
             return "double"
         return "single"
 
-    check_destination
+    check_release_destination:
+        held_st_base = held_card.stack_base
         for space in spaces:
+            if space = held_st_base or not held_card.in_range(space):
+                continue
             dest is space.valid_dest(held_card):
             if dest:
                 return dest
+        return None
 
     create_foundation
         create foundation spaces in upper left
@@ -80,7 +85,9 @@ Game class:
             game.handle_mouse_down
         elif event is mouse up:
             game.handle_mouse_up
-    
+        elif event is z key:
+            self.undo
+
     handle_mouse_down:
         set target to game.get_mouse_target
         if target:
@@ -103,12 +110,23 @@ Game class:
             for space in foundations + tableau + freecells:
                 dest = space.get_valid_dest(target)
                 if dest:
-                    target.switch_space(dest)
+                    self.make_move(target, dest)
+                    return
 
     handle_mouse_up:
         if held_card:
-            held_card.release(self.spaces)
+            dest = self.check_dest(held_card)
+            if dest:
+                self.make_move(held_card, dest)
+            held_card.release()
             set self.held_card to None
+
+    make_move(card, space, logging=True):
+        create move dict
+        set move['card'] to card, move['source'] to home_base, move['dest'] to space
+        card.switch_space(space)
+        if logging move:
+            append move to self.moves
 
     run:
         while game.running:
@@ -118,6 +136,12 @@ Game class:
         game.draw
         game.handle_events
         game.update
+
+    undo:
+        if move in move list:
+            take card, dest, and source on last move in list
+            call self.make_move to move card from dest to source without logging.
+            remove last move from move list
 
     update:
         if held_card:

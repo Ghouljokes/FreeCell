@@ -131,19 +131,9 @@ class Card(pygame.sprite.Sprite):
             return self._value == 1
         return card.suit == self._suit and card.value == self._value - 1
 
-    def release(self, spaces: list["Space"]):
-        """Release card into an available space from spaces."""
+    def release(self):
+        """Release card from cursor."""
         self.is_clicked = False
-        own_base_space = self.stack_base
-        for space in spaces:
-            # Prevent trying to move into own column, which could result in
-            # infinite recursion as stack tries to move to the top of itself.
-            if space == own_base_space:
-                continue
-            dest = space.get_valid_dest(self)
-            if dest and self.in_range(dest):
-                self.switch_space(dest)
-                return
         self.go_home()
 
     def set_anchor(self, cursor_pos):
