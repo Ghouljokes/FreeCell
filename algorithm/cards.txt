@@ -27,6 +27,15 @@ class Card(sprite):
             lowest_card = lowest_card.below_card
         return lowest_card.home_space
 
+    @property
+    stack_size:
+        set size to 1
+        set check_card to self
+        while check_card.above_card:
+            size += 1
+            check_card = above_card
+        return size
+
     center_on_point(location):
         set rectangle center to location
         card.move to new topleft corner

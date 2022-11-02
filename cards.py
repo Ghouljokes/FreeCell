@@ -60,6 +60,16 @@ class Card(pygame.sprite.Sprite):
         return lowest_card.home_space
 
     @property
+    def stack_size(self):
+        """Return how large a stack down from this card would be."""
+        stack_size = 1
+        check_card = self
+        while check_card.above_card:
+            stack_size += 1
+            check_card = check_card.above_card
+        return stack_size
+
+    @property
     def stack_space(self):
         """Getter for stackspace."""
         return self._stack_space

@@ -13,7 +13,13 @@ Game class:
         last_click = now
         moves = []
 
-
+    @property
+    free_spaces:
+        set empty_cells to 0
+        iterate through spaces in free cells and tabs:
+            if space is empty:
+                empty_cells += 1
+        return empty_cells
 
     @property
     spaces:
@@ -35,6 +41,13 @@ Game class:
             if dest:
                 return dest
         return None
+
+    check_valid_move(card, space):
+        stack_size = card.stack_size
+        available_spaces = self.free_spaces
+        if space is a StackSpace:
+            available_spaces += 1
+        return stack_size <= available_spaces and space.get_valid_dest(card)
 
     create_foundation
         create foundation spaces in upper left
@@ -110,8 +123,8 @@ Game class:
             for space in foundations + tableau + freecells:
                 dest = space.get_valid_dest(target)
                 if dest:
-                    self.make_move(target, dest)
-                    return
+                    if self.make_move(target, dest):
+                        return
 
     handle_mouse_up:
         if held_card:
@@ -121,12 +134,14 @@ Game class:
             held_card.release()
             set self.held_card to None
 
-    make_move(card, space, logging=True):
-        create move dict
-        set move['card'] to card, move['source'] to home_base, move['dest'] to space
-        card.switch_space(space)
-        if logging move:
+    make_move(card, space, undo=False):
+        if not undo:
+            if not self.check_valid_move(card, space):
+                return False
+            create move dict with card, source, and space
             append move to self.moves
+        card.switch_space(space)
+        return True
 
     run:
         while game.running:
@@ -140,7 +155,7 @@ Game class:
     undo:
         if move in move list:
             take card, dest, and source on last move in list
-            call self.make_move to move card from dest to source without logging.
+            call self.make_move to move card from dest to source with undo set to True.
             remove last move from move list
 
     update:

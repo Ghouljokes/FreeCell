@@ -1,8 +1,9 @@
+from pickle import TRUE
 from random import shuffle
 from typing import Optional
 import time
 import pygame
-from space import Space, Foundation, Tableau, FreeCell
+from space import Space, Foundation, Tableau, FreeCell, StackSpace
 from cards import Card, create_deck
 from constants import CARD_WIDTH, BUFFER_SIZE
 
@@ -32,6 +33,15 @@ class Game:
         self._moves: list[dict] = []
 
     @property
+    def free_spaces(self):
+        """Get amount of empty cells to put cards in."""
+        empty_cells = 0
+        for space in self._free_cells + self._tableau:
+            if not space.card:
+                empty_cells += 1
+        return empty_cells
+
+    @property
     def spaces(self):
         return self._foundation + self._free_cells + self._tableau
 
@@ -55,6 +65,14 @@ class Game:
             if dest and card.in_range(dest):
                 return dest
         return None
+
+    def check_valid_move(self, card: "Card", space: "Space"):
+        """Check if moving card to a space is allowed by rules."""
+        stack_size = card.stack_size
+        available_spaces = self.free_spaces
+        # If destination isn't an empty cell, it frees up a cell.
+        available_spaces += isinstance(space, StackSpace)
+        return stack_size <= available_spaces and space.get_valid_dest(card)
 
     def create_foundation(self):
         """Create foundation spaces and region on left side of the screen."""
@@ -90,7 +108,7 @@ class Game:
 
     def create_screen(self):
         """Create main window for the game."""
-        screen = pygame.display.set_mode((450, 450))
+        screen = pygame.display.set_mode((450, 500))
         pygame.display.set_caption("Freecell")
         return screen
 
@@ -183,8 +201,9 @@ class Game:
             for space in self._foundation + self._tableau + self._free_cells:
                 dest = space.get_valid_dest(target)
                 if dest:
-                    self.make_move(target, dest)
-                    return
+                    # Try and make a move, and end method if successful.
+                    if self.make_move(target, dest):
+                        return
 
     def handle_mouse_up(self):
         """Handle event where mouse is released."""
@@ -195,12 +214,22 @@ class Game:
             self._held_card.release()
             self._held_card = None
 
-    def make_move(self, card: "Card", space: "Space", logging=True):
-        """Move card to a new space. Logging determines if it is added to move list."""
-        move_dict = {"card": card, "source": card._home_space, "dest": space}
-        card.switch_space(space)
-        if logging:
+    def make_move(self, card: "Card", space: "Space", undo=False):
+        """
+        Move card to a new space. Undo is for if it's undoing a move.
+        Returns bool indicating if a move was successfuly made or not.
+        """
+        if not undo:
+            if not self.check_valid_move(card, space):
+                return False
+            move_dict = {
+                "card": card,
+                "source": card._home_space,
+                "dest": space,
+            }
             self._moves.append(move_dict)
+        card.switch_space(space)
+        return True
 
     def run(self):
         """Run game until it is closed."""
@@ -218,7 +247,7 @@ class Game:
         if self._moves:  # If any moves have been made.
             last_move = self._moves[-1]
             card, dest = last_move["card"], last_move["source"]
-            self.make_move(card, dest, False)  # Reverse the move w/o logging.
+            self.make_move(card, dest, undo=True)  # Reverse the move.
             self._moves.pop()  # Remove undone move.
 
     def update(self):
