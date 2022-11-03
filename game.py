@@ -20,9 +20,9 @@ class Game:
     def __init__(self):
         """Start game."""
         self._screen = self.create_screen()
-        self._foundation, self._found_region = self.create_foundation()
-        self._free_cells, self._free_region = self.create_free_cells()
-        self._tableau, self._tab_region = self.create_tableau()
+        self._foundation = self.create_foundation()
+        self._free_cells = self.create_free_cells()
+        self._tableau = self.create_tableau()
         self._deck = create_deck()
         self.deal_cards()
         self._held_card: Optional["Card"] = None
@@ -66,7 +66,7 @@ class Game:
         return "single"
 
     def create_foundation(self):
-        """Create foundation spaces and region on left side of the screen."""
+        """Create foundation spaces on left side of the screen."""
         foundations: list[Space] = []
         x = BUFFER_SIZE
         y = BUFFER_SIZE
@@ -74,8 +74,7 @@ class Game:
             space = Foundation(x, y)
             foundations.append(space)
             x += BUFFER_SIZE + CARD_WIDTH
-        region = self.create_region(foundations)
-        return foundations, region
+        return foundations
 
     def create_free_cells(self):
         """Create free cells on the right side of the screen."""
@@ -86,16 +85,7 @@ class Game:
             space = FreeCell(x, y)
             free_cells.append(space)
         free_cells.reverse()  # So the list goes left to right.
-        region = self.create_region(free_cells)
-        return free_cells, region
-
-    def create_region(self, space_list: list[Space]):
-        """Create region for list of spaces. Not for tableau."""
-        x1, y1 = space_list[0].rect.topleft
-        x2, y2 = space_list[-1].rect.bottomright
-        width = x2 - x1
-        height = y2 - y1
-        return pygame.Rect(x1, y1, width, height)
+        return free_cells
 
     def create_screen(self):
         """Create main window for the game."""
@@ -104,7 +94,7 @@ class Game:
         return screen
 
     def create_tableau(self):
-        """Create tableau spaces and region."""
+        """Create tableau spaces."""
         center = self._screen.get_rect().centerx
         x = int(center - (3.5 * BUFFER_SIZE + 4 * CARD_WIDTH))
         y = 120
@@ -113,10 +103,7 @@ class Game:
             space = Tableau(x, y)
             tableau.append(space)
             x += BUFFER_SIZE + CARD_WIDTH
-        # Since tableau counts cards, entire main area of screen is region.
-        region_height = self._screen.get_height() - y
-        region = pygame.Rect(0, y, self._screen.get_width(), region_height)
-        return tableau, region
+        return tableau
 
     def deal_cards(self):
         """Deal all cards to the tableau"""
@@ -141,14 +128,11 @@ class Game:
 
     def get_mouse_target(self, cursor_pos):
         """Check to see if the mouse clicked on anything."""
-        spaces = [self._foundation, self._free_cells, self._tableau]
-        regions = [self._found_region, self._free_region, self._tab_region]
-        for space_list, region in zip(spaces, regions):
-            if region.collidepoint(cursor_pos):
-                for space in space_list:
-                    target = space.check_for_target(cursor_pos)
-                    if target:
-                        return target
+        spaces = self._foundation + self._free_cells + self._tableau
+        for space in spaces:
+            target = space.check_for_target(cursor_pos)
+            if target:
+                return target
         return None
 
     def get_release_destination(self, card: "Card"):
