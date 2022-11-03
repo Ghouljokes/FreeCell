@@ -36,9 +36,17 @@ class Card(sprite):
             check_card = above_card
         return size
 
-    center_on_point(location):
-        set rectangle center to location
-        card.move to new topleft corner
+    @property
+    top_card:
+        set highest to self
+        while highest.above_card:
+            set highest to above card
+        return highest
+
+    can_drop_off(space):
+        if space is self.top_card.stack_space:
+            return False
+        return self.in_range(space)
 
     click(cursor_pos):
         set anchor point

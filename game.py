@@ -1,4 +1,3 @@
-from pickle import TRUE
 from random import shuffle
 from typing import Optional
 import time
@@ -33,7 +32,12 @@ class Game:
         self._moves: list[dict] = []
 
     @property
-    def free_spaces(self):
+    def column_spaces(self):
+        """Return top space in each column."""
+        return [space.top_space for space in self._tableau]
+
+    @property
+    def empty_cells(self):
         """Get amount of empty cells to put cards in."""
         empty_cells = 0
         for space in self._free_cells + self._tableau:
@@ -45,6 +49,13 @@ class Game:
     def spaces(self):
         return self._foundation + self._free_cells + self._tableau
 
+    def auto_move(self, card):
+        """Automatically try and move a card to an ideal position."""
+        for space in self._foundation + self.column_spaces + self._free_cells:
+            move_made = self.try_move(card, space)
+            if move_made:
+                return
+
     def check_click_type(self, target):
         """Check if a click on a target would be single or double."""
         click_time = time.time()
@@ -53,26 +64,6 @@ class Game:
         if time_between <= DOUBLECLICKTIME and target == self._last_target:
             return "double"
         return "single"
-
-    def check_release_destination(self, card: "Card"):
-        """Check if card can be released into any space and return space."""
-        stack_base = card.stack_base
-        for space in self.spaces:
-            # Keep card from trying to move to top of its own stack.
-            if space == stack_base:
-                continue
-            dest = space.get_valid_dest(card)
-            if dest and card.in_range(dest):
-                return dest
-        return None
-
-    def check_valid_move(self, card: "Card", space: "Space"):
-        """Check if moving card to a space is allowed by rules."""
-        stack_size = card.stack_size
-        available_spaces = self.free_spaces
-        # If destination isn't an empty cell, it frees up a cell.
-        available_spaces += isinstance(space, StackSpace)
-        return stack_size <= available_spaces and space.get_valid_dest(card)
 
     def create_foundation(self):
         """Create foundation spaces and region on left side of the screen."""
@@ -160,6 +151,13 @@ class Game:
                         return target
         return None
 
+    def get_release_destination(self, card: "Card"):
+        """If a card would release from being held into a certain space, return space."""
+        for space in self._foundation + self._free_cells + self.column_spaces:
+            if card.can_drop_off(space):
+                return space
+        return None
+
     def handle_events(self):
         """Handle all player actions."""
         for event in pygame.event.get():
@@ -196,23 +194,13 @@ class Game:
 
     def handle_double_click(self, target):
         """Automove the target if it is a card."""
-        if isinstance(target, Card) and target.is_valid_stack():
-            # Check found first, then tab, then free cells last.
-            for space in self._foundation + self._tableau + self._free_cells:
-                dest = space.get_valid_dest(target)
-                if dest:
-                    # Try and make a move, and end method if successful.
-                    if self.make_move(target, dest):
-                        return
+        if isinstance(target, Card):
+            self.auto_move(target)
 
     def handle_mouse_up(self):
         """Handle event where mouse is released."""
         if self._held_card:
-            dest = self.check_release_destination(self._held_card)
-            if dest:
-                self.make_move(self._held_card, dest)
-            self._held_card.release()
-            self._held_card = None
+            self.release_card()
 
     def make_move(self, card: "Card", space: "Space", undo=False):
         """
@@ -220,8 +208,6 @@ class Game:
         Returns bool indicating if a move was successfuly made or not.
         """
         if not undo:
-            if not self.check_valid_move(card, space):
-                return False
             move_dict = {
                 "card": card,
                 "source": card._home_space,
@@ -229,7 +215,25 @@ class Game:
             }
             self._moves.append(move_dict)
         card.switch_space(space)
-        return True
+
+    def release_card(self):
+        """Release the currently held card."""
+        if not self._held_card:
+            return
+        dest = self.get_release_destination(self._held_card)
+        if dest:
+            self.try_move(self._held_card, dest)
+        self._held_card.release()
+        self._held_card = None
+
+    def room_for_move(self, card: "Card", space: "Space"):
+        """Check if there are enough spaces to move a stack."""
+        available_space = self.empty_cells
+        # Since moving to a card or foundation doesn't use up an empty space,
+        # It counts for an extra available space to move.
+        if isinstance(space, StackSpace) or isinstance(space, Foundation):
+            available_space += 1
+        return card.stack_size <= available_space
 
     def run(self):
         """Run game until it is closed."""
@@ -241,6 +245,13 @@ class Game:
         self.draw()
         self.handle_events()
         self.update()
+
+    def try_move(self, card: "Card", space: "Space"):
+        """Attempt to make a move and return True if successful."""
+        if self.valid_dest(card, space):
+            self.make_move(card, space)
+            return True
+        return False
 
     def undo(self):
         """Undo the last move in the move list."""
@@ -255,6 +266,10 @@ class Game:
         if self._held_card:
             cursor_pos = pygame.mouse.get_pos()
             self._held_card.drag(cursor_pos)
+
+    def valid_dest(self, card: "Card", space: "Space"):
+        """Return whether card can be moved to space."""
+        return self.room_for_move(card, space) and space.valid_dest(card)
 
 
 if __name__ == "__main__":

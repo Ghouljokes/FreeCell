@@ -6,9 +6,6 @@ class Space:
         set rect at position
         set cards to []
 
-    is_empty:
-        return if length of space.cards is 0
-
     @property
     card:
         if not empty:
@@ -28,12 +25,11 @@ class Space:
         if not empty:
             space.card.draw 
 
-    get_valid_dest(card):
-        return space.isempty and space intersects card
-
     remove_card(card):
         remove card from self.cards if card is there.
 
+    valid_dest(card):
+        return no card in space
 
 class Foundation(space):
 
@@ -44,15 +40,15 @@ class Foundation(space):
                 return
         draw rectangle
 
-    get_valid_dest(card):
-        if card isn't stacked and card.piles_up(self.card) and rects intersect:
-            return self
-   
+    valid_dest(card):
+        if card isn't stacked and card.piles_up(self.card):
+            return True
+
 
 class FreeCell(space):
 
-    get_valid_dest(card):
-        if card isn't stacked:
+    valid_dest(card):
+        if card isn't stacked and no self.card:
             return super().get_valid_dest(card)
 
 class StackSpace(space):
@@ -64,13 +60,13 @@ class StackSpace(space):
         position is parent_card's topleft offset by the stack offset
         Space.__init__(position)
 
-    def get_valid_dest(card):
-        if space intersects card and card.stacks_down(self.parent_card)
-            return self
-
     def move(location):
         set rect to new location
         if card in space, move card along with space.
+
+    def valid_dest(card):
+        if card.stacks_down(self.parent_card) and space is empty:
+            return True
 
 
 
@@ -90,7 +86,7 @@ class Tableau(Space):
             return top_card.space
         else:
             return else
-    
+
     check_for_target:
         if cursor x within tableau x:
             target_card = self.top_card
@@ -99,12 +95,6 @@ class Tableau(Space):
                     return card
                 else:
                     target card = card.below_card
-
-    get_valid_dest(card):
-        if self.card:
-            return top_space.valid_dest(card)
-        else:
-            return super().get_valid_Dest(card)
 
     stack_card(card):
         self.top_space.add_card(card)

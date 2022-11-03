@@ -14,7 +14,12 @@ Game class:
         moves = []
 
     @property
-    free_spaces:
+    column_spaces:
+        set column_spaces to top spaces for each column of the tableau
+        return column_spaces
+
+    @property
+    empty_cells:
         set empty_cells to 0
         iterate through spaces in free cells and tabs:
             if space is empty:
@@ -25,6 +30,12 @@ Game class:
     spaces:
         return all spaces on the game board.
 
+    auto_move(card):
+        for space in foundations + columns + freecells:
+            move_made = self.try_move(card, space)
+            if move_made:
+                return
+
     check_click_type(target):
         set click_time to now
         time_between is click_time - self.last_click_time
@@ -32,22 +43,7 @@ Game class:
             return "double"
         return "single"
 
-    check_release_destination:
-        held_st_base = held_card.stack_base
-        for space in spaces:
-            if space = held_st_base or not held_card.in_range(space):
-                continue
-            dest is space.valid_dest(held_card):
-            if dest:
-                return dest
-        return None
 
-    check_valid_move(card, space):
-        stack_size = card.stack_size
-        available_spaces = self.free_spaces
-        if space is a StackSpace:
-            available_spaces += 1
-        return stack_size <= available_spaces and space.get_valid_dest(card)
 
     create_foundation
         create foundation spaces in upper left
@@ -86,6 +82,12 @@ Game class:
                     if target is card:
                         return target
 
+    get_release_destination(card):
+        for space in foundations, free_cells, columns:
+            if card.can_drop_off(space):
+                return space
+        return None
+
     handle_events:
         get events
         for event in events:
@@ -119,29 +121,33 @@ Game class:
             target.click(cursor position)
 
     handle_double_click(target):
-        if target is card and target.is_valid_stack:
-            for space in foundations + tableau + freecells:
-                dest = space.get_valid_dest(target)
-                if dest:
-                    if self.make_move(target, dest):
-                        return
+        if target is card:
+            self.auto_move(card)
 
     handle_mouse_up:
         if held_card:
-            dest = self.check_dest(held_card)
-            if dest:
-                self.make_move(held_card, dest)
-            held_card.release()
-            set self.held_card to None
+            self.release_card()
 
     make_move(card, space, undo=False):
         if not undo:
-            if not self.check_valid_move(card, space):
-                return False
             create move dict with card, source, and space
             append move to self.moves
         card.switch_space(space)
-        return True
+
+    release_card:
+        if not held_card:
+            return
+        dest = self.get_release_dest(held_card)
+        if dest:
+            self.try_move(held_card, dest)
+        held_card.release()
+        set self.held_card to None
+
+    room_for_move(card, space):
+        available_space = self.free_spaces
+        if space is StackSpace or Foundation:
+            available_space += 1
+        return card.stack_size <= available_space
 
     run:
         while game.running:
@@ -152,6 +158,12 @@ Game class:
         game.handle_events
         game.update
 
+    try_move(card, space):
+        if self.valid_dest(card, space):
+            self.make_move(card, space)
+            return True
+        return False
+
     undo:
         if move in move list:
             take card, dest, and source on last move in list
@@ -161,5 +173,8 @@ Game class:
     update:
         if held_card:
             *card.drag to mouse location*
-
++++
+    valid_dest(card, space):
+        return self.room_for_move(card, space) and space.valid_dest(card)
++++
     

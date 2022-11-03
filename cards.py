@@ -80,15 +80,24 @@ class Card(pygame.sprite.Sprite):
         return self._suit
 
     @property
+    def top_card(self):
+        """Return card at the top of its stack."""
+        highest = self
+        while highest.above_card:
+            highest = highest.above_card
+        return highest
+
+    @property
     def value(self):
         """Getter for value."""
         return self._value
 
-    def center_on_point(self, point):
-        """Move the card to be centered on the location."""
-        self.rect.center = point
-        # Since move handles stuff besides changing the rect, call that.
-        self.move(self.rect.topleft)
+    def can_drop_off(self, space: "Space"):
+        """Check if card could potentially be dropped into a space."""
+        # Prevent attempts to drop cards to the top of their own stack.
+        if space == self.top_card.stack_space:
+            return False
+        return self.in_range(space)
 
     def click(self, cursor_pos):
         """Handle card becoming held."""

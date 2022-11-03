@@ -56,11 +56,12 @@ class Space:
         if card in self._cards:
             self._cards.remove(card)
 
-    def get_valid_dest(self, card: "Card"):
-        """If space can hold card, return the space."""
-        if not self.card:
-            return self
-        return None
+    def valid_dest(self, card: "Card"):
+        """
+        If space can hold card, return the space.
+        Card is unused in base method and is kept as argument for subclasses.
+        """
+        return not self.card
 
 
 class Foundation(Space):
@@ -74,21 +75,17 @@ class Foundation(Space):
                 return
         pygame.draw.rect(screen, SLOT_COLOR, self.rect)
 
-    def get_valid_dest(self, card: "Card"):
-        """If suitable, return space."""
-        if card.piles_up(self.card) and not card.above_card:
-            return self
-        return None
+    def valid_dest(self, card: "Card"):
+        """If suitable, and single card, return True."""
+        return card.piles_up(self.card) and not card.above_card
 
 
 class FreeCell(Space):
     """Free cell space."""
 
-    def get_valid_dest(self, card: "Card"):
-        """Like base get_valid_dest, except card must not be stacked."""
-        if not card.above_card:
-            return super().get_valid_dest(card)
-        return None
+    def valid_dest(self, card: "Card"):
+        """Check if card is single ant space is empty."""
+        return not self.card and not card.above_card
 
 
 class StackSpace(Space):
@@ -109,17 +106,15 @@ class StackSpace(Space):
         """Getter for parent."""
         return self._parent_card
 
-    def get_valid_dest(self, card: "Card"):
-        """Return self if card can stack down."""
-        if card.stacks_down(self._parent_card):
-            return self
-        return None
-
     def move(self, location: tuple[int, int]):
         """Move the space and contained cards to new location."""
         self._rect.topleft = location
         if self.card:
             self.card.move(location)
+
+    def valid_dest(self, card: "Card"):
+        """Check if card can stack down."""
+        return card.stacks_down(self._parent_card)
 
 
 class Tableau(Space):
@@ -149,13 +144,6 @@ class Tableau(Space):
                     return target_card
                 target_card = target_card.below_card
         return None
-
-    def get_valid_dest(self, card):
-        """Check validity of top card in the column."""
-        if self.card:
-            return self.top_space.get_valid_dest(card)
-        # If empty, just check as a normal space.
-        return super().get_valid_dest(card)
 
     def stack_card(self, card: "Card"):
         """Add card to the highest available space in the column."""
