@@ -31,12 +31,18 @@ Game class:
                 self.make_move(card, space)
                 return
 
-    check_click_type(target):
-        set click_time to now
+    check_release_type:
+        set release_time to now
         time_between is click_time - self.last_click_time
-        if time_between <= DOUBLECLICKTIME and target == self.last_target:
-            return "double"
-        return "single"
+        if time_between <= CLICKRELEASETIME:
+            return "click_release"
+        else:
+            return hold_release
+
+    click_card(target):
+        if target is card and card.is_valid_stack:
+            self.held_card = target
+            target.click(cursor position)
 
     create_foundation
         create foundation spaces in upper left
@@ -93,29 +99,33 @@ Game class:
         elif event is z key:
             self.undo
 
+    handle_click_release:
+        if held_card:
+            self.auto_move(held_card)
+            self.held_card.release()
+            self.held_card = None
+
+    handle_hold_release:
+        if not held_card:
+            return
+        dest = self.get_release_dest(held_card)
+        if dest and self.valid_dest(held_card, dest):
+            self.make_move(card, dest)
+        held_card.release()
+        self.held_card = None
+
     handle_mouse_down:
         set target to game.get_mouse_target
+        set self.last_click to now
         if target:
-            click_type = self.check_click_type(target)
-            if single click:
-                self.handle_single_click(target)
-            elif double click:
-                self.handle_double_click(target)
-
-    handle_single_click(target):
-        if target is card and card.is_valid_stack:
-            self.held_card = target
-            set self.last_click to now
-            set self.last_target to target
-            target.click(cursor position)
-
-    handle_double_click(target):
-        if target is card:
-            self.auto_move(card)
+            self.click_card(target)
 
     handle_mouse_up:
-        if held_card:
-            self.release_card()
+        release_type = self.check_release_type
+        if release_type is click_release:
+            self.handle_click_release
+        else:
+            self.handle_hold_release
 
     make_move(card, space, undo=False):
         if not undo:
@@ -123,14 +133,8 @@ Game class:
             append move to self.moves
         card.switch_space(space)
 
-    release_card:
-        if not held_card:
-            return
-        dest = self.get_release_dest(held_card)
-        if dest and self.valid_dest(held_card, dest):
-            self.make_move(card, dest)
-        held_card.release()
-        set self.held_card to None
+
+
 
     room_for_move(card, space):
         available_space = self.free_spaces

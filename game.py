@@ -11,7 +11,7 @@ BG_COLOR = "#35654d"
 SLOT_COLOR = "#1e4632"
 
 # How close clicks have to be in seconds to count as double
-DOUBLECLICKTIME = 0.5
+CLICKRELEASETIME = 0.2
 
 
 class Game:
@@ -27,7 +27,6 @@ class Game:
         self._held_card: Optional["Card"] = None
         self._running = True
         self._last_click_time = time.time()
-        self._last_target = None
         self._moves: list[dict] = []
 
     @property
@@ -51,14 +50,21 @@ class Game:
                 self.make_move(card, space)
                 return
 
-    def check_click_type(self, target):
-        """Check if a click on a target would be single or double."""
+    def check_release_type(self):
+        """Check if release is from a click or a hold."""
         click_time = time.time()
         time_between = click_time - self._last_click_time
         # Needs to be on the same target to count
-        if time_between <= DOUBLECLICKTIME and target == self._last_target:
-            return "double"
-        return "single"
+        if time_between <= CLICKRELEASETIME:
+            return "click_release"
+        else:
+            return "hold_release"
+
+    def click_card(self, target):
+        """Pick up the target."""
+        if isinstance(target, Card) and target.is_valid_stack():
+            self._held_card = target
+            target.click(pygame.mouse.get_pos())
 
     def create_foundation(self):
         """Create foundation spaces on left side of the screen."""
@@ -122,8 +128,9 @@ class Game:
             self._held_card.draw(self._screen)
         pygame.display.update()
 
-    def get_mouse_target(self, cursor_pos):
+    def get_mouse_target(self):
         """Check to see if the mouse clicked on anything."""
+        cursor_pos = pygame.mouse.get_pos()
         spaces = self._foundation + self._free_cells + self._tableau
         for space in spaces:
             target = space.check_for_target(cursor_pos)
@@ -153,34 +160,37 @@ class Game:
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_z:
             self.undo()
 
+    def handle_click_release(self):
+        """Handle if the user performed a single click."""
+        if self._held_card:
+            self.auto_move(self._held_card)
+            self._held_card.release()
+            self._held_card = None
+
+    def handle_hold_release(self):
+        """Handle if user released mouse after holding."""
+        if not self._held_card:
+            return
+        dest = self.get_release_destination(self._held_card)
+        if dest and self.valid_dest(self._held_card, dest):
+            self.make_move(self._held_card, dest)
+        self._held_card.release()
+        self._held_card = None
+
     def handle_mouse_down(self):
         """Handle if the player clicks down on the mouse."""
-        cursor_pos = pygame.mouse.get_pos()
-        target = self.get_mouse_target(cursor_pos)
+        target = self.get_mouse_target()
+        self._last_click_time = time.time()
         if target:
-            click_type = self.check_click_type(target)
-            if click_type == "single":
-                self.handle_single_click(target)
-            elif click_type == "double":
-                self.handle_double_click(target)
-
-    def handle_single_click(self, target):
-        """Pick up the target."""
-        if isinstance(target, Card) and target.is_valid_stack():
-            self._held_card = target
-            self._last_click_time = time.time()
-            self._last_target = target
-            target.click(pygame.mouse.get_pos())
-
-    def handle_double_click(self, target):
-        """Automove the target if it is a card."""
-        if isinstance(target, Card):
-            self.auto_move(target)
+            self.click_card(target)
 
     def handle_mouse_up(self):
         """Handle event where mouse is released."""
-        if self._held_card:
-            self.release_card()
+        release_type = self.check_release_type()
+        if release_type == "click_release":
+            self.handle_click_release()
+        else:
+            self.handle_hold_release()
 
     def make_move(self, card: "Card", space: "Space", undo=False):
         """
@@ -196,16 +206,6 @@ class Game:
             }
             self._moves.append(move_dict)
         card.switch_space(space)
-
-    def release_card(self):
-        """Release the currently held card."""
-        if not self._held_card:
-            return
-        dest = self.get_release_destination(self._held_card)
-        if dest and self.valid_dest(self._held_card, dest):
-            self.make_move(self._held_card, dest)
-        self._held_card.release()
-        self._held_card = None
 
     def room_for_move(self, card: "Card", space: "Space"):
         """Check if there are enough spaces to move a stack."""
