@@ -49,7 +49,7 @@ class Card(sprite):
         return self.in_range(space)
 
     click(cursor_pos):
-        set anchor point
+        self.set anchor point(cursor_pos)
         set is_clicked to True
 
     drag(cursor_pos):

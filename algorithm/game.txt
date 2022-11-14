@@ -6,8 +6,7 @@ Game class:
         game.create_screen
         game.create_foundation
         game.create_free_cells
-        game.create_tabluau
-        set cards to a deck
+        game.create_tableau
         game.add_cards
         held_card is None
         last_click = now
@@ -26,14 +25,10 @@ Game class:
                 empty_cells += 1
         return empty_cells
 
-    @property
-    spaces:
-        return all spaces on the game board.
-
     auto_move(card):
         for space in foundations + columns + freecells:
-            move_made = self.try_move(card, space)
-            if move_made:
+            if self.valid_dest(card, space):
+                self.make_move(card, space)
                 return
 
     check_click_type(target):
@@ -43,21 +38,17 @@ Game class:
             return "double"
         return "single"
 
-
-
     create_foundation
         create foundation spaces in upper left
-        create region for foundation
 
     create_free_cells
         create free cells in upper right
-        create region for free cells
 
     create_tableau
         create 8 tableau columns
-        create tableau region at lower portion of screen
-    
+
     deal_cards:
+        create deck
         shuffle deck
         start at first tableau
         for card in deck:
@@ -67,20 +58,19 @@ Game class:
                 move to next tab
             else:
                 go back to first tab
-    
+
     draw:
+        reset screen
         for each space:
-            space.draw
+            space.draw(self.screen)
         if held_card:
-            held_card.draw
+            held_card.draw(self.screen)
 
     get_mouse_target:
-        Check each region to see if mouse is in it.
-            if mouse in region:
-                for space in region:
-                    space.check_for_target
-                    if target is card:
-                        return target
+        for space in foundations, free_cells, tableaus"
+            space.check_for_target
+            if target is card:
+                return target
 
     get_release_destination(card):
         for space in foundations, free_cells, columns:
@@ -112,7 +102,6 @@ Game class:
             elif double click:
                 self.handle_double_click(target)
 
-
     handle_single_click(target):
         if target is card and card.is_valid_stack:
             self.held_card = target
@@ -138,8 +127,8 @@ Game class:
         if not held_card:
             return
         dest = self.get_release_dest(held_card)
-        if dest:
-            self.try_move(held_card, dest)
+        if dest and self.valid_dest(held_card, dest):
+            self.make_move(card, dest)
         held_card.release()
         set self.held_card to None
 
@@ -173,8 +162,7 @@ Game class:
     update:
         if held_card:
             *card.drag to mouse location*
-+++
+
     valid_dest(card, space):
         return self.room_for_move(card, space) and space.valid_dest(card)
-+++
     

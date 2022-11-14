@@ -23,7 +23,6 @@ class Game:
         self._foundation = self.create_foundation()
         self._free_cells = self.create_free_cells()
         self._tableau = self.create_tableau()
-        self._deck = create_deck()
         self.deal_cards()
         self._held_card: Optional["Card"] = None
         self._running = True
@@ -45,15 +44,11 @@ class Game:
                 empty_cells += 1
         return empty_cells
 
-    @property
-    def spaces(self):
-        return self._foundation + self._free_cells + self._tableau
-
     def auto_move(self, card):
         """Automatically try and move a card to an ideal position."""
         for space in self._foundation + self.column_spaces + self._free_cells:
-            move_made = self.try_move(card, space)
-            if move_made:
+            if self.valid_dest(card, space):
+                self.make_move(card, space)
                 return
 
     def check_click_type(self, target):
@@ -107,9 +102,10 @@ class Game:
 
     def deal_cards(self):
         """Deal all cards to the tableau"""
-        shuffle(self._deck)
+        deck = create_deck()
+        shuffle(deck)
         column = 0  # To iterate through columns
-        for card in self._deck:
+        for card in deck:
             self._tableau[column].stack_card(card)
             card.go_home()
             if column < len(self._tableau) - 1:
@@ -192,6 +188,7 @@ class Game:
         Returns bool indicating if a move was successfuly made or not.
         """
         if not undo:
+            # Store move so it can be undone later.
             move_dict = {
                 "card": card,
                 "source": card._home_space,
@@ -205,8 +202,8 @@ class Game:
         if not self._held_card:
             return
         dest = self.get_release_destination(self._held_card)
-        if dest:
-            self.try_move(self._held_card, dest)
+        if dest and self.valid_dest(self._held_card, dest):
+            self.make_move(self._held_card, dest)
         self._held_card.release()
         self._held_card = None
 
@@ -229,13 +226,6 @@ class Game:
         self.draw()
         self.handle_events()
         self.update()
-
-    def try_move(self, card: "Card", space: "Space"):
-        """Attempt to make a move and return True if successful."""
-        if self.valid_dest(card, space):
-            self.make_move(card, space)
-            return True
-        return False
 
     def undo(self):
         """Undo the last move in the move list."""

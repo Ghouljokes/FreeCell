@@ -19,7 +19,6 @@ class Space:
         if cursor in rect and cards not empty:
             return space.card
 
-
     draw(screen):
         draw rectangle
         if not empty:
@@ -49,7 +48,7 @@ class FreeCell(space):
 
     valid_dest(card):
         if card isn't stacked and no self.card:
-            return super().get_valid_dest(card)
+            return super().valid_dest(card)
 
 class StackSpace(space):
     attributes:
