@@ -56,10 +56,10 @@ class Space:
         if card in self._cards:
             self._cards.remove(card)
 
-    def valid_dest(self, card: "Card"):
+    def valid_dest(self, _: "Card"):
         """
         If space can hold card, return the space.
-        Card is unused in base method and is kept as argument for subclasses.
+        second argument is kept as argument for subclasses.
         """
         return not self.card
 

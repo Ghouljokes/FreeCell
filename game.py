@@ -57,8 +57,7 @@ class Game:
         # Needs to be on the same target to count
         if time_between <= CLICKRELEASETIME:
             return "click_release"
-        else:
-            return "hold_release"
+        return "hold_release"
 
     def click_card(self, target):
         """Pick up the target."""
@@ -139,7 +138,7 @@ class Game:
         return None
 
     def get_release_destination(self, card: "Card"):
-        """If a card would release from being held into a certain space, return space."""
+        """If a card would release into a certain space, return space."""
         for space in self._foundation + self._free_cells + self.column_spaces:
             if card.can_drop_off(space):
                 return space
@@ -212,7 +211,7 @@ class Game:
         available_space = self.empty_cells
         # Since moving to a card or foundation doesn't use up an empty space,
         # It counts for an extra available space to move.
-        if isinstance(space, StackSpace) or isinstance(space, Foundation):
+        if isinstance(space, (Foundation, StackSpace)):
             available_space += 1
         return card.stack_size <= available_space
 
