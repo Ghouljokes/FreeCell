@@ -28,6 +28,6 @@ class SpriteSheet:
         left_x = (value - 1) * CARD_WIDTH
         return (left_x, upper_y, CARD_WIDTH, CARD_HEIGHT)
 
-    def card_sprite(self, suit: str, value: int):
+    def card_image(self, suit: str, value: int):
         rectangle = self.card_rect(suit, value)
         return self.image_at(rectangle)

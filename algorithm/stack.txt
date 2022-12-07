@@ -1,0 +1,114 @@
+valid_stack(cards):
+    if not cards:
+        return False
+    if len(cards) == 1:
+        return True
+    for i in range(1, len(cards)):
+        card = cards[i]
+        prev_card = cards[i-1]
+        if not card.stacks_down(prev_card):
+            return False
+    return True
+
+
+class Stack:
+    attributes:
+        cards, home_space
+    
+    __init__(home_space, cards=None):
+        set self._home_space to home_space
+        if cards:
+            set self._cards to cards
+        else:
+            set self._cards to []
+
+    @property
+    bottom_card:
+        return lowest card in the stack if it exists or None
+    
+    @property
+    cards:
+        return self._cards
+    
+    @property
+    home_space:
+        return self._home_space
+    
+    @property
+    is_empty:
+        return self.length == 0
+
+    @property
+    length:
+        return len(self._cards)
+
+    @property
+    top_card:
+        return self._cards[-1] if not empty else return None
+    
+    add_card(Card):
+        append card to self._cards
+
+    draw(screen):
+        for card in self._cards:
+            card.draw(screen)
+
+    get_mouse_target(cursor_pos):
+        for card in self._cards[::-1]:
+            if card rect collides with cursor:
+                return make_stack(card)
+        return None
+
+    get_sub_stack(card):
+        if card in self._cards:
+            card_index = index of card
+            return self._cards[card_index:]
+        return None
+
+    go_home():
+        for card in self.cards:
+            card.go_to_space(self._home_space)
+
+    make_stack(card):
+        substack = self.get_sub_stack(card)
+        if is_valid_stack(substack):
+            make MoveStack from substack with same home_space as self
+            remove each card in MoveStack from self.
+            return stack
+        return None
+
+    remove_card(Card):
+        if card in self._cards:
+            self._cards.remove(card)
+
+
+class MoveStack(Stack):
+    attributes:
+        cards, home_space, reference_point
+    
+    __init__(home_space, cards):
+        Stack.__init__(home_space, cards)
+        set self._reference_point to 0, 0
+        
+    click(cursor_pos):
+        set self._reference_point to cursor_pos
+
+    drag(cursor_pos):
+        dx, dy = cursor_pos - reference_point
+        move all cards by dx, dy
+        set reference point to cursor pos
+
+    in_range(rect):
+        return bottom_card.rect collides with rect
+
+    make_move(space):
+        make move dict with {source: self._home_space, dest: space, cards: self.bottom_card}
+        set self._home_space to space
+        self.go_home()
+        return move_dict
+
+    piles_up(stack):
+        return if self.bottom card and if it piles up from stack's top card.
+
+    stacks_down(stack):
+        return if self.bottom_card.stacks_down(stack.top_card)

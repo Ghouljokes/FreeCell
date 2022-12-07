@@ -1,0 +1,92 @@
+
+
+class Space:
+    attributes:
+        cards,rect
+    
+    __init__(x, y, index):
+        set self._rect at position
+        set self._stack to empty Stack
+        set self._index to index
+    
+    __repr__(self):
+        return "free cell {index}"
+
+    @property
+    cards:
+        return self._stack
+
+    @property
+    is_empty:
+        return if self._stack is empty
+
+    @property
+    next_card_pos:
+        return self.rect.topleft
+
+    @property
+    top_card:
+        return self._stack.top_card
+
+    @property
+    top_rect:
+        return self._rect
+
+    check_for_target(cursor_pos):
+        if cursor_pos in self._rect and not self.is_empty:
+            return self._stack.make_stack(self.top_card)
+
+    draw(screen):
+        if not empty:
+            self._stack.draw(screen)
+        else:
+            draw the rect
+
+    is_valid_drop_point(stack):
+        return stack.in_range(self.top_rect) and self.valid_dest(stack)    
+
+    valid_dest(stack):
+        return self.is_empty and stack.length == 1
+
+
+class Foundation(Space)
+
+    __repr__:
+        return "foundation {index}"
+
+    valid_dest(stack):
+        return stack.length == 1 and stack.piles_up(self.cards)
+
+
+class FreeCell(Space)
+
+
+class Tableau(Space)
+
+    __repr__:
+        return "Tableau {index}"
+
+    @property
+    next_card_pos:
+        x is self._rect.x
+        if self.top_card:
+            y is top_card.rect.top + STACK_OFFSET
+        else:
+            y is self._rect.y
+        return (x, y)
+
+    @property
+    top_rect:
+        if top_card:
+            return top_card.rect
+        else:
+            return self.rect
+
+    check_for_target(cursor_pos):
+        return self._stack.get_mouse_target(cursor_pos)
+
+    valid_dest(stack):
+        if self.is_empty:
+            return True
+        else:
+            return stack.stacks_down(self._stack) 

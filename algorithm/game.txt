@@ -1,172 +1,202 @@
 Game class:
     attributes:
-        screen, foundation, free cells, tableau, deck, held_card, running
-    
-    create_game:
-        game.create_screen
-        game.create_foundation
-        game.create_free_cells
-        game.create_tableau
-        game.add_cards
-        held_card is None
-        last_click = now
-        moves = []
+        screen, spaces, held_card, last_click, moves, running
+
+    __init__:
+        set self._screen to self.create_screen()
+        set self._foundation to self.create_foundation()
+        set self.free_cells to self.create_free_cells()
+        set self.tableau to self.create_tableau()
+        set self._held_stack to None
+        set self._last_click to now
+        set self._moves to empty list
+        set self._running to True
+        set self._event_methods to dict {
+            pygame.QUIT: self.quit, pygame.MOUSEBUTTONDOWN: self.handle_mouse_down, pygame.MOUSEBUTTONUP: self.handle_mouse_up,
+            pygame.K_z: self.undo
+        }
 
     @property
-    column_spaces:
-        set column_spaces to top spaces for each column of the tableau
-        return column_spaces
+    empty_spaces:
+        empty_count = 0
+        for space in self._free_cells + self._tableau:
+            if space.is_empty:
+                increase empty_count by 1
+        return empty_count
 
     @property
-    empty_cells:
-        set empty_cells to 0
-        iterate through spaces in free cells and tabs:
-            if space is empty:
-                empty_cells += 1
-        return empty_cells
+    sorted_tableau:
+        return list of tableau spaces, sorted so non-empty ones come first.
 
-    auto_move(card):
-        for space in foundations + columns + freecells:
-            if self.valid_dest(card, space):
-                self.make_move(card, space)
+    @property
+    spaces:
+        return self._foundations + self._free_cells + self._tableau
+
+    auto_dest(stack):
+        for space_list in [self._foundation, self.sorted_tableau self._free_cells]:
+            set space to self.get_valid_space(stack, space_list)
+            if space and space != stack.home_space:
+                self.make_move(stack, space)
                 return
 
-    check_release_type:
-        set release_time to now
-        time_between is click_time - self.last_click_time
-        if time_between <= CLICKRELEASETIME:
-            return "click_release"
-        else:
-            return hold_release
+    clear_hand:
+        set self._held_stack to None
 
-    click_card(target):
-        if target is card and card.is_valid_stack:
-            self.held_card = target
-            target.click(cursor position)
+    click_stack(move_stack):
+        set self._held_stack to move_stack
+        move_stack.click(cursor_pos)
 
-    create_foundation
-        create foundation spaces in upper left
+    create_foundations:
+        set foundations to empty list
+        x_pos is BUFFER_SIZE
+        for i in range 4:
+            create Foundation object at location x_pos, BUFFER_SIZE, index i
+            append foundation to foundations list
+            add card width + BUFFER_SIZE to x_pos
+        return foundations
 
-    create_free_cells
-        create free cells in upper right
+    create_free_cells:
+        set free_cells to empty list
+        x_pos is screen.width - (card width + BUFFER_SIZE)
+        for i in range(4):
+            create FreeCell object at location x_pos, BUFFER_SIZE, index i
+            add free cell to beginning of free cells list
+            subtract (card width + BUFFER_SIZE) from x_pos
+        return free_cells
 
-    create_tableau
-        create 8 tableau columns
+    create_screen:
+        set screen to pygame.display.set_mode((450, 500))
+        set caption to "Freecell"
+        return screen
+
+    create_tableau:
+        get center coordinate of screen
+        x_pos = center minus (3.5x buffer size + 4x card width)
+        y_pos = 120
+        tableaus = []
+        for i in range(8):
+            create Tableau at x_pos, y_pos, index i
+            append tab to tableaus
+            add card width + BUFFER_SIZE to x_pos
+        return tableaus
 
     deal_cards:
         create deck
         shuffle deck
-        start at first tableau
-        for card in deck:
-            tableau.stack_card(card)
-            card.go_home
-            if not last tab:
-                move to next tab
-            else:
-                go back to first tab
+        for i in range 8:
+            tab = self.tableau[i]
+            stack_length = 6 + i < 4
+            make Stack with home_space tab from first stack_length cards in deck 
+            remove those cards from the deck
+            stack.go_home()
 
     draw:
-        reset screen
-        for each space:
-            space.draw(self.screen)
-        if held_card:
-            held_card.draw(self.screen)
+        clear screen
+        for space in self.spaces:
+            space.draw(self._screen)
+        if held_stack:
+            held_stack.draw(self._screen)
+        update screen.
 
     get_mouse_target:
-        for space in foundations, free_cells, tableaus"
-            space.check_for_target
-            if target is card:
+        get cursor_pos
+        for space in self.spaces:
+            target = space.check_for_target(cursor_pos)
+            if target:
                 return target
 
-    get_release_destination(card):
-        for space in foundations, free_cells, columns:
-            if card.can_drop_off(space):
+    get_release_dest:
+        for space in self.spaces:
+            if space.is_valid_drop_point(self._held_stack) and 
+            self.room_for_move(self._held_stack, space):
                 return space
         return None
 
-    handle_events:
-        get events
-        for event in events:
-            game.handle_event
-    
-    handle_event(event):
-        if event is quit event:
-            game.running = false
-        elif event is mouse down:
-            game.handle_mouse_down
-        elif event is mouse up:
-            game.handle_mouse_up
-        elif event is z key:
-            self.undo
+    get_valid_space(stack, spaces):
+        for space in spaces:
+            if self.room_for_move(stack, space) and space.valid_dest(stack):
+                return space
+        return None
 
     handle_click_release:
-        if held_card:
-            self.auto_move(held_card)
-            self.held_card.release()
-            self.held_card = None
+        if self._held_stack:
+            dest = self.auto_dest(self._held_stack)
+            if dest:
+                self.make_move(self._held_stack, dest)
+            else:
+                self._held_stack.go_home()
+            self.clear_hand()
+
+    handle_events:
+        for event in pygame.event.get():
+            self.handle_event(event)
+
+    handle_event(event):
+        if event.type = pygame.KEYDOWN:
+            event_key = event.key
+        else:
+            event_key = event.type
+        if event_key in self.event_methods:
+            method = self.event_methods[event_key]
+            method()
 
     handle_hold_release:
-        if not held_card:
-            return
-        dest = self.get_release_dest(held_card)
-        if dest and self.valid_dest(held_card, dest):
-            self.make_move(card, dest)
-        held_card.release()
-        self.held_card = None
+        if self._held_stack:
+            dest = self.get_release_dest()
+            if dest:
+                self.make_move(self._held_stack, dest)
+            else:
+                self._held_stack.go_home()
+            self.clear_hand()        
 
     handle_mouse_down:
-        set target to game.get_mouse_target
-        set self.last_click to now
+        set self._last_click to now
+        target_stack = self.get_mouse_target()
         if target:
-            self.click_card(target)
+            self.click_stack(target)
 
     handle_mouse_up:
-        release_type = self.check_release_type
-        if release_type is click_release:
-            self.handle_click_release
+        time_between is now - self._last_click_time
+        if time_between <= CLICKRELEASETIME:
+            self.handle_click_release()
         else:
-            self.handle_hold_release
+            self.handle_hold_release()
 
-    make_move(card, space, undo=False):
-        if not undo:
-            create move dict with card, source, and space
-            append move to self.moves
-        card.switch_space(space)
+    make_move(stack, space):
+        set move_dict to stack.make_move(space)
+        append move_dict to self.moves
 
+    quit:
+        set self._running to False
 
-
-
-    room_for_move(card, space):
-        available_space = self.free_spaces
-        if space is StackSpace or Foundation:
-            available_space += 1
-        return card.stack_size <= available_space
+    room_for_move(stack, space):
+        max_stack_length = self.empty_spaces
+        if stack.home_space.is_empty:
+            max_stack_length -= 1
+        if not space.is_empty:
+            max_stack_length += 1
+        return stack.length <= max_stack_length
 
     run:
-        while game.running:
-            game.tick
-    
-    tick:
-        game.draw
-        game.handle_events
-        game.update
+        self.set_up_game()
+        while self._running:
+            self.tick()
 
-    try_move(card, space):
-        if self.valid_dest(card, space):
-            self.make_move(card, space)
-            return True
-        return False
+    set_up_game:
+        self.deal_cards()
+
+    tick:
+        self.draw()
+        self.handle_events():
+        self.update():
 
     undo:
-        if move in move list:
-            take card, dest, and source on last move in list
-            call self.make_move to move card from dest to source with undo set to True.
-            remove last move from move list
+        if self.move_list has moves:
+            take card, dest, and source from last move in list
+            undo_stack = dest.cards.make_stack(card)
+            undo_stack.make_move(source)
+            remove last move from move_list
 
     update:
-        if held_card:
-            *card.drag to mouse location*
-
-    valid_dest(card, space):
-        return self.room_for_move(card, space) and space.valid_dest(card)
-    
+        if self._held_stack:
+            stack.drag to mouse location

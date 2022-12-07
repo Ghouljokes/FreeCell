@@ -1,0 +1,55 @@
+set SUIT_COLORS to dict of suits and their colors
+
+class Card(sprite):
+    attributes:
+        suit, value
+    
+    __init__(suit, value, sprite_sheet):
+        init the sprite
+        set self._suit to suit
+        set self._value to value
+        get image from sprite_sheet.card_image(suit, value)
+        set self.rect to image rect
+
+    @property
+    color:
+        return SUIT_COLORS[self._suit]
+
+    @property
+    suit:
+        return self._suit
+    
+    @property
+    value:
+        return self._value
+
+    draw(screen):
+        draw sprite at rect location
+
+    go_to_space(space):
+        move self.rect to space.next_card_pos
+        space.add_card(self)
+
+    move(dx, dy):
+        translate self.rect by dx and dy
+
+    piles_up(card):
+        if not card:
+            return self.value == 1
+        else:
+            return card.suit is the same as self.suit and self.value is card.value + 1
+
+    stacks_down(card):
+        if not card:
+            return True
+        else:
+            return self.suit color != card.suit color and self.value is card.value - 1
+    
+create_deck:
+    set deck to empty list
+    set spritesheet to SpriteSheet object
+    for suit in sprite_sheet.suits:
+        for value in range 1 to 14:
+            card is Card object with suit, value, and spritesheet
+            append card to deck
+    return deck

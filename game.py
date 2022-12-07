@@ -1,248 +1,263 @@
+from typing import TYPE_CHECKING
 from random import shuffle
-from typing import Optional
 import time
 import pygame
-from space import Space, Foundation, Tableau, FreeCell, StackSpace
-from cards import Card, create_deck
-from constants import CARD_WIDTH, BUFFER_SIZE
-
+from card import create_deck
+from constants import BUFFER_SIZE, CARD_WIDTH
+from space import Space, Foundation, Tableau
+from stack import MoveStack
 
 BG_COLOR = "#35654d"
-SLOT_COLOR = "#1e4632"
 
-# How close clicks have to be in seconds to count as double
 CLICKRELEASETIME = 0.2
 
 
 class Game:
-    """Game of freecell."""
+    """Main game object."""
 
     def __init__(self):
-        """Start game."""
+        """Set up game board."""
         self._screen = self.create_screen()
-        self._foundation = self.create_foundation()
-        self._free_cells = self.create_free_cells()
-        self._tableau = self.create_tableau()
-        self.deal_cards()
-        self._held_card: Optional["Card"] = None
-        self._running = True
-        self._last_click_time = time.time()
+        self._foundation: list[Space] = self.create_foundations()
+        self._free_cells: list[Space] = self.create_free_cells()
+        self._tableau: list[Space] = self.create_tableau()
+        self._held_stack: "MoveStack" | None = None
+        self._last_click = time.time()
         self._moves: list[dict] = []
+        self._running = True
+        self._event_methods = {
+            pygame.QUIT: self.quit,
+            pygame.MOUSEBUTTONDOWN: self.handle_mouse_down,
+            pygame.MOUSEBUTTONUP: self.handle_mouse_up,
+            pygame.K_z: self.undo,
+        }
 
     @property
-    def column_spaces(self):
-        """Return top space in each column."""
-        return [space.top_space for space in self._tableau]
-
-    @property
-    def empty_cells(self):
-        """Get amount of empty cells to put cards in."""
-        empty_cells = 0
+    def empty_spaces(self):
+        """Return amount of empty spaces in tableau and free cells."""
+        empty_count = 0
         for space in self._free_cells + self._tableau:
-            if not space.card:
-                empty_cells += 1
-        return empty_cells
+            if space.is_empty:
+                empty_count += 1
+        return empty_count
 
-    def auto_move(self, card):
-        """Automatically try and move a card to an ideal position."""
-        for space in self._foundation + self.column_spaces + self._free_cells:
-            if self.valid_dest(card, space):
-                self.make_move(card, space)
-                return
+    @property
+    def sorted_tableau(self):
+        """Return list of tableau spaces sorted so empty ones come last.
+        Used for prioritizing spaces in auto_dest."""
+        return sorted(self._tableau, key=lambda space: space.is_empty)
 
-    def check_release_type(self):
-        """Check if release is from a click or a hold."""
-        click_time = time.time()
-        time_between = click_time - self._last_click_time
-        # Needs to be on the same target to count
-        if time_between <= CLICKRELEASETIME:
-            return "click_release"
-        return "hold_release"
+    @property
+    def spaces(self):
+        """Return all spaces."""
+        return self._foundation + self._free_cells + self._tableau
 
-    def click_card(self, target):
-        """Pick up the target."""
-        if isinstance(target, Card) and target.is_valid_stack():
-            self._held_card = target
-            target.click(pygame.mouse.get_pos())
+    def auto_dest(self, stack: "MoveStack"):
+        """Automatically move stack to first available space if it exists.
+        Priority is Foundations, Tableau, then Free cells."""
+        for space_list in [self._foundation, self.sorted_tableau, self._free_cells]:
+            space = self.get_valid_space(stack, space_list)
+            if space:
+                return space
+        return None
 
-    def create_foundation(self):
-        """Create foundation spaces on left side of the screen."""
-        foundations: list[Space] = []
-        x = BUFFER_SIZE
-        y = BUFFER_SIZE
-        for _ in range(4):
-            space = Foundation(x, y)
-            foundations.append(space)
-            x += BUFFER_SIZE + CARD_WIDTH
+    def clear_hand(self):
+        """Remove held stack from hand."""
+        self._held_stack = None
+
+    def click_stack(self, move_stack: "MoveStack"):
+        """Click a given stack, setting it to held."""
+        self._held_stack = move_stack
+        move_stack.click(pygame.mouse.get_pos())
+
+    def create_foundations(self):
+        """Create foundation spaces."""
+        foundations = []
+        x_pos = BUFFER_SIZE
+        for i in range(4):
+            foundation = Foundation(x_pos, BUFFER_SIZE, i)
+            foundations.append(foundation)
+            x_pos += (
+                CARD_WIDTH + BUFFER_SIZE
+            )  # Shift x pos over one card and one buffer.
         return foundations
 
     def create_free_cells(self):
-        """Create free cells on the right side of the screen."""
+        """Create freecell spaces."""
         free_cells = []
+        # Start from left.
+        x_pos = self._screen.get_width() - (CARD_WIDTH + BUFFER_SIZE)
         for i in range(4):
-            x = self._screen.get_width() - (i + 1) * (BUFFER_SIZE + CARD_WIDTH)
-            y = BUFFER_SIZE
-            space = FreeCell(x, y)
-            free_cells.append(space)
-        free_cells.reverse()  # So the list goes left to right.
+            free_cell = Space(x_pos, BUFFER_SIZE, i)
+            free_cells.insert(0, free_cell)
+            x_pos -= CARD_WIDTH + BUFFER_SIZE
         return free_cells
 
     def create_screen(self):
-        """Create main window for the game."""
+        """Create the main game surface."""
         screen = pygame.display.set_mode((450, 500))
-        pygame.display.set_caption("Freecell")
+        pygame.display.set_caption("FreeCell")
         return screen
 
     def create_tableau(self):
         """Create tableau spaces."""
-        center = self._screen.get_rect().centerx
-        x = int(center - (3.5 * BUFFER_SIZE + 4 * CARD_WIDTH))
-        y = 120
-        tableau = []
-        for _ in range(8):
-            space = Tableau(x, y)
-            tableau.append(space)
-            x += BUFFER_SIZE + CARD_WIDTH
-        return tableau
+        center = self._screen.get_width() // 2
+        # Tableau is 8 cards + 7 buffers wide. Since tableau is centered,
+        # Starting x pos will be center x - half the tab width.
+        x_pos = int(center - (3.5 * BUFFER_SIZE + 4 * CARD_WIDTH))
+        y_pos = 120
+        tableaus = []
+        for i in range(8):
+            tableau = Tableau(x_pos, y_pos, i)
+            tableaus.append(tableau)
+            x_pos += CARD_WIDTH + BUFFER_SIZE
+        return tableaus
 
     def deal_cards(self):
-        """Deal all cards to the tableau"""
+        """Deal cards to the tableaus."""
         deck = create_deck()
         shuffle(deck)
-        column = 0  # To iterate through columns
-        for card in deck:
-            self._tableau[column].stack_card(card)
-            card.go_home()
-            if column < len(self._tableau) - 1:
-                column += 1
-            else:  # Return to first column if last one was reached.
-                column = 0
+        for i in range(8):
+            tab = self._tableau[i]
+            stack_length = 6 + (i < 4)  # First four columns are 7 cards high.
+            stack = MoveStack(tab, deck[:stack_length])
+            stack.go_home()
+            deck = deck[stack_length:]
 
     def draw(self):
-        """Draw everything to the screen."""
-        self._screen.fill(BG_COLOR)  # Reset screen
-        for space in self._foundation + self._free_cells + self._tableau:
+        """Draw game."""
+        self._screen.fill(BG_COLOR)  # reset screen.
+        for space in self.spaces:
             space.draw(self._screen)
-        if self._held_card:  # Draw held card last so it is always visible.
-            self._held_card.draw(self._screen)
+        if self._held_stack:  # Draw held stack last.
+            self._held_stack.draw(self._screen)
         pygame.display.update()
 
     def get_mouse_target(self):
-        """Check to see if the mouse clicked on anything."""
+        """Get target based off mouse position."""
         cursor_pos = pygame.mouse.get_pos()
-        spaces = self._foundation + self._free_cells + self._tableau
-        for space in spaces:
+        for space in self.spaces:
             target = space.check_for_target(cursor_pos)
             if target:
                 return target
+
+    def get_release_dest(self):
+        """Check to see if there is a valid space to move held stack to."""
+        if self._held_stack:
+            for space in self.spaces:
+                if space.is_valid_drop_point(self._held_stack) and self.room_for_move(
+                    self._held_stack, space
+                ):
+                    return space
         return None
 
-    def get_release_destination(self, card: "Card"):
-        """If a card would release into a certain space, return space."""
-        for space in self._foundation + self._free_cells + self.column_spaces:
-            if card.can_drop_off(space):
+    def get_valid_space(self, stack: "MoveStack", space_list: list["Space"]):
+        """Check for a valid space in the given space list."""
+        for space in space_list:
+            if space == stack.home_space:
+                continue
+            if self.room_for_move(stack, space) and space.valid_dest(stack):
                 return space
         return None
 
+    def handle_click_release(self):
+        """Handle release from a click rather than a hold."""
+        if self._held_stack:
+            # A single click will try to automatically move a stack.
+            dest = self.auto_dest(self._held_stack)
+            if dest:
+                self.make_move(self._held_stack, dest)
+            else:
+                self._held_stack.go_home()
+            self.clear_hand()
+
     def handle_events(self):
-        """Handle all player actions."""
+        """Handle game events."""
         for event in pygame.event.get():
             self.handle_event(event)
 
-    def handle_event(self, event):
-        if event.type == pygame.QUIT:
-            self._running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            self.handle_mouse_down()
-        elif event.type == pygame.MOUSEBUTTONUP:
-            self.handle_mouse_up()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_z:
-            self.undo()
-
-    def handle_click_release(self):
-        """Handle if the user performed a single click."""
-        if self._held_card:
-            self.auto_move(self._held_card)
-            self._held_card.release()
-            self._held_card = None
+    def handle_event(self, event: pygame.event.Event):
+        """Take event and perform the relevant event action."""
+        if event.type == pygame.KEYDOWN:
+            event_key = event.key
+        else:
+            event_key = event.type
+        if event_key in self._event_methods:
+            method = self._event_methods[event_key]
+            method()  # Call method.
 
     def handle_hold_release(self):
-        """Handle if user released mouse after holding."""
-        if not self._held_card:
-            return
-        dest = self.get_release_destination(self._held_card)
-        if dest and self.valid_dest(self._held_card, dest):
-            self.make_move(self._held_card, dest)
-        self._held_card.release()
-        self._held_card = None
+        """Handle mouse release from being held down."""
+        if self._held_stack:
+            dest = self.get_release_dest()
+            if dest:
+                self.make_move(self._held_stack, dest)
+            else:  # If no valid location, return to original position.
+                self._held_stack.go_home()
+            self.clear_hand()
 
     def handle_mouse_down(self):
-        """Handle if the player clicks down on the mouse."""
-        target = self.get_mouse_target()
-        self._last_click_time = time.time()
-        if target:
-            self.click_card(target)
+        """Check to see if user clicked something."""
+        self._last_click = time.time()
+        target_stack = self.get_mouse_target()
+        if target_stack:
+            self.click_stack(target_stack)
 
     def handle_mouse_up(self):
-        """Handle event where mouse is released."""
-        release_type = self.check_release_type()
-        if release_type == "click_release":
+        """Determine type of mouse release and act accordingly."""
+        time_between = time.time() - self._last_click
+        if time_between <= CLICKRELEASETIME:
             self.handle_click_release()
         else:
             self.handle_hold_release()
 
-    def make_move(self, card: "Card", space: "Space", undo=False):
-        """
-        Move card to a new space. Undo is for if it's undoing a move.
-        Returns bool indicating if a move was successfuly made or not.
-        """
-        if not undo:
-            # Store move so it can be undone later.
-            move_dict = {
-                "card": card,
-                "source": card._home_space,
-                "dest": space,
-            }
-            self._moves.append(move_dict)
-        card.switch_space(space)
+    def make_move(self, stack: "MoveStack", space: "Space"):
+        """Move stack over to new space and record it."""
+        move_dict = stack.make_move(space)
+        self._moves.append(move_dict)
 
-    def room_for_move(self, card: "Card", space: "Space"):
-        """Check if there are enough spaces to move a stack."""
-        available_space = self.empty_cells
-        # Since moving to a card or foundation doesn't use up an empty space,
-        # It counts for an extra available space to move.
-        if isinstance(space, (Foundation, StackSpace)):
-            available_space += 1
-        return card.stack_size <= available_space
+    def quit(self):
+        """End the game."""
+        self._running = False
+
+    def room_for_move(self, stack: "MoveStack", space: "Space"):
+        """Check if there are enough empty spaces to manage a move."""
+        max_stack_length = self.empty_spaces
+        if stack.home_space.is_empty:
+            # Don't count home space as empty since it tehnically still has the stack in it.
+            max_stack_length -= 1
+        if not space.is_empty:  # Moving to empty space would take up a space.
+            max_stack_length += 1
+        return stack.length <= max_stack_length
 
     def run(self):
-        """Run game until it is closed."""
+        """Run game until close."""
+        self.set_up_game()
         while self._running:
             self.tick()
 
+    def set_up_game(self):
+        """Prepare new game."""
+        self.deal_cards()
+
     def tick(self):
-        """Handle an individual tick of the game."""
+        """Run a single game tick."""
         self.draw()
         self.handle_events()
         self.update()
 
     def undo(self):
-        """Undo the last move in the move list."""
-        if self._moves:  # If any moves have been made.
+        """Undo last made move."""
+        if self._moves:  # If there are moves to undo.
             last_move = self._moves[-1]
-            card, dest = last_move["card"], last_move["source"]
-            self.make_move(card, dest, undo=True)  # Reverse the move.
-            self._moves.pop()  # Remove undone move.
+            undo_stack = last_move["dest"]._stack.make_stack(last_move["card"])
+            undo_stack.make_move(last_move["source"])
+            self._moves.pop()  # Remove undone move from moves.
 
     def update(self):
-        """Update for the current frame."""
-        if self._held_card:
-            cursor_pos = pygame.mouse.get_pos()
-            self._held_card.drag(cursor_pos)
-
-    def valid_dest(self, card: "Card", space: "Space"):
-        """Return whether card can be moved to space."""
-        return self.room_for_move(card, space) and space.valid_dest(card)
+        """Update for new tick."""
+        if self._held_stack:
+            self._held_stack.drag(pygame.mouse.get_pos())
 
 
 if __name__ == "__main__":
