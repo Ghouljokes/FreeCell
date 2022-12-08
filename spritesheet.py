@@ -4,6 +4,8 @@ from constants import CARD_HEIGHT, CARD_WIDTH
 
 
 class SpriteSheet:
+    """Spritesheet used for card images."""
+
     def __init__(self):
         """Load the sheet."""
         filename = "./sprites/Deck.png"
@@ -28,6 +30,7 @@ class SpriteSheet:
         left_x = (value - 1) * CARD_WIDTH
         return (left_x, upper_y, CARD_WIDTH, CARD_HEIGHT)
 
-    def card_image(self, suit: str, value: int):
+    def card_image(self, suit: str, value: int) -> pygame.surface.Surface:
+        """Get the image for a given card from the spritesheet."""
         rectangle = self.card_rect(suit, value)
         return self.image_at(rectangle)

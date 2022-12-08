@@ -1,4 +1,6 @@
-from typing import Optional, TYPE_CHECKING
+"""Hold Stack class and MoveStack subclass."""
+
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from card import Card
@@ -24,7 +26,7 @@ def is_valid_stack(cards: list["Card"] | None):
 class Stack:
     """Stack of card objects."""
 
-    def __init__(self, home_space: "Space", cards: Optional[list["Card"]] = None):
+    def __init__(self, home_space: "Space", cards=None):
         """Create a stack of cards with home space and list of cards.
 
         Args:
@@ -32,11 +34,8 @@ class Stack:
             cards (list[Card], optional): Cards that go in the stack. Defaults to None.
         """
         self._home_space = home_space
-        #  Need to do this because using empty list in args uses all sorts of problems.
-        if cards:
-            self._cards = cards
-        else:
-            self._cards = []
+        #  Need to do this because using empty list in args causes issues.
+        self._cards: list["Card"] = cards if cards else []
 
     def __repr__(self):
         return f"{self._home_space}'s stack"
@@ -50,10 +49,12 @@ class Stack:
 
     @property
     def cards(self):
+        """Getter for list of cards."""
         return self._cards
 
     @property
     def home_space(self):
+        """Getter for home_space."""
         return self._home_space
 
     @property
@@ -101,9 +102,9 @@ class Stack:
         for card in self._cards:
             card.go_to_space(self._home_space)
 
-    def make_stack(self, card: "Card"):
+    def make_stack(self, start_card: "Card"):
         """Try and make a valid movestack starting from the card."""
-        substack = self.get_sub_stack(card)
+        substack = self.get_sub_stack(start_card)
         if substack and is_valid_stack(substack):
             for card in substack:
                 self.remove_card(card)
@@ -133,16 +134,17 @@ class MoveStack(Stack):
 
     def drag(self, cursor_pos: tuple[int, int]):
         """Drag stack so reference point is at new cursor position."""
-        dx = cursor_pos[0] - self._reference_point[0]
-        dy = cursor_pos[1] - self._reference_point[1]
+        d_x = cursor_pos[0] - self._reference_point[0]
+        d_y = cursor_pos[1] - self._reference_point[1]
         for card in self._cards:
-            card.move(dx, dy)
+            card.move(d_x, d_y)
         self._reference_point = cursor_pos  # Set new ref point.
 
     def in_range(self, rect: "pygame.rect.Rect"):
         """Return if the bottom card is in the given rect."""
         if self.bottom_card:
             return rect.colliderect(self.bottom_card.rect)
+        return False
 
     def make_move(self, space: "Space"):
         """Move stack into space."""

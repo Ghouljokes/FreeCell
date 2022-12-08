@@ -67,6 +67,10 @@ class Space:
         """Check if movestack can be dropped off here."""
         return stack.in_range(self.top_rect) and self.valid_dest(stack)
 
+    def make_sub_stack(self, card):
+        """Make sub stack off of the given card."""
+        return self._stack.make_stack(card)
+
     def valid_dest(self, stack: "MoveStack"):
         """Check if space is a valid destination for the movestack."""
         return self.is_empty and stack.length == 1

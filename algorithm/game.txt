@@ -13,7 +13,7 @@ Game class:
         set self._running to True
         set self._event_methods to dict {
             pygame.QUIT: self.quit, pygame.MOUSEBUTTONDOWN: self.handle_mouse_down, pygame.MOUSEBUTTONUP: self.handle_mouse_up,
-            pygame.K_z: self.undo
+            pygame.K_z: self.undo, pygame.K_a: self.handle_a_key
         }
 
     @property
@@ -38,6 +38,13 @@ Game class:
             if space and space != stack.home_space:
                 self.make_move(stack, space)
                 return
+
+    auto_foundation:
+        moves_made = False
+        for space in self._tableau + self._free_cells:
+            if self.try_move_to_found(space):
+                moves_made = True
+        return moves_made
 
     clear_hand:
         set self._held_stack to None
@@ -118,6 +125,11 @@ Game class:
                 return space
         return None
 
+    handle_a_key:
+        moves_made = True
+        while moves_made:
+            moves_made = self.auto_foundation
+
     handle_click_release:
         if self._held_stack:
             dest = self.auto_dest(self._held_stack)
@@ -189,6 +201,17 @@ Game class:
         self.draw()
         self.handle_events():
         self.update():
+
+    try_move_to_found(space):
+        if space.is_empty:
+            return False
+        top_stack = space.make_sub_stack(space.top_card)
+        destination = self.get_valid_space(top_stack, self._foundations)
+        if not destination:
+            top_stack.go_home()
+            return False
+        self.make_move(top_stack, destination)
+        return True
 
     undo:
         if self.move_list has moves:

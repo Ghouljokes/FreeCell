@@ -5,6 +5,6 @@
     "python.linting.mypyEnabled": false,
     "python.linting.prospectorEnabled": false,
     "python.linting.pycodestyleEnabled": false,
-    "python.linting.pylamaEnabled": true,
-    "python.linting.pylintEnabled": false
+    "python.linting.pylamaEnabled": false,
+    "python.linting.pylintEnabled": true
 }

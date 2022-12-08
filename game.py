@@ -30,6 +30,7 @@ class Game:
             pygame.MOUSEBUTTONDOWN: self.handle_mouse_down,
             pygame.MOUSEBUTTONUP: self.handle_mouse_up,
             pygame.K_z: self.undo,
+            pygame.K_a: self.handle_a_key,
         }
 
     @property
@@ -60,6 +61,18 @@ class Game:
             if space:
                 return space
         return None
+
+    def auto_foundation(self):
+        """Try to move all currently exposed cards to foundation.
+
+        returns:
+            bool: Whether or not a move was made.
+        """
+        moves_made = False
+        for space in self._tableau + self._free_cells:
+            if self.try_move_to_found(space):
+                moves_made = True
+        return moves_made
 
     def clear_hand(self):
         """Remove held stack from hand."""
@@ -160,6 +173,12 @@ class Game:
                 return space
         return None
 
+    def handle_a_key(self):
+        """Move all exposed cards to foundations if possible."""
+        moves_made = True
+        while moves_made:  # Continue until no more moves are made.
+            moves_made = self.auto_foundation()
+
     def handle_click_release(self):
         """Handle release from a click rather than a hold."""
         if self._held_stack:
@@ -245,6 +264,20 @@ class Game:
         self.draw()
         self.handle_events()
         self.update()
+
+    def try_move_to_found(self, space: "Space"):
+        """Try moving top card in a space to the founds and return whether successful."""
+        if space.is_empty:
+            return False
+        top_stack = space.make_sub_stack(space.top_card)
+        if not top_stack:
+            raise Exception(f"Failed to make top stack from {space}.")
+        destination = self.get_valid_space(top_stack, self._foundation)
+        if not destination:
+            top_stack.go_home()
+            return False
+        self.make_move(top_stack, destination)
+        return True
 
     def undo(self):
         """Undo last made move."""
