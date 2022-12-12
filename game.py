@@ -7,6 +7,8 @@ from constants import BUFFER_SIZE, CARD_WIDTH
 from space import Space, Foundation, Tableau
 from stack import MoveStack
 
+pygame.init()
+
 BG_COLOR = "#35654d"
 
 CLICKRELEASETIME = 0.2
@@ -25,10 +27,13 @@ class Game:
         self._last_click = time.time()
         self._moves: list[dict] = []
         self._running = True
+        self._won = False
+        self._win_text = self.create_win_text()
         self._event_methods = {
             pygame.QUIT: self.quit,
             pygame.MOUSEBUTTONDOWN: self.handle_mouse_down,
             pygame.MOUSEBUTTONUP: self.handle_mouse_up,
+            pygame.K_q: self.quit,
             pygame.K_z: self.undo,
             pygame.K_a: self.handle_a_key,
         }
@@ -36,11 +41,16 @@ class Game:
     @property
     def empty_spaces(self):
         """Return amount of empty spaces in tableau and free cells."""
-        empty_count = 0
-        for space in self._free_cells + self._tableau:
-            if space.is_empty:
-                empty_count += 1
-        return empty_count
+        valid_spaces = self._tableau + self._free_cells  # Don't count founds.
+        whether_empty = [space.is_empty for space in valid_spaces]
+        return sum(whether_empty)  # Sum of bool list is amount of True values.
+
+    @property
+    def has_won(self):
+        """Check if game has been won."""
+        # Since there are 8 tabs and 4 freecells, an empty_space count of 12
+        # means they're all empty.
+        return self.empty_spaces == 12
 
     @property
     def sorted_tableau(self):
@@ -55,7 +65,7 @@ class Game:
 
     def auto_dest(self, stack: "MoveStack"):
         """Automatically move stack to first available space if it exists.
-        Priority is Foundations, Tableau, then Free cells."""
+        Priority is Foundations, (sorted) Tableau, then Free cells."""
         for space_list in [self._foundation, self.sorted_tableau, self._free_cells]:
             space = self.get_valid_space(stack, space_list)
             if space:
@@ -90,9 +100,8 @@ class Game:
         for i in range(4):
             foundation = Foundation(x_pos, BUFFER_SIZE, i)
             foundations.append(foundation)
-            x_pos += (
-                CARD_WIDTH + BUFFER_SIZE
-            )  # Shift x pos over one card and one buffer.
+            # Shift x pos over one card and one buffer.
+            x_pos += CARD_WIDTH + BUFFER_SIZE
         return foundations
 
     def create_free_cells(self):
@@ -126,6 +135,13 @@ class Game:
             x_pos += CARD_WIDTH + BUFFER_SIZE
         return tableaus
 
+    def create_win_text(self):
+        """create win message in center of screen."""
+        font = pygame.font.Font("freesansbold.ttf", 16)
+        message = "Congratulations! Press q to quit."
+        text = font.render(message, True, (255, 255, 0))
+        return text
+
     def deal_cards(self):
         """Deal cards to the tableaus."""
         deck = create_deck()
@@ -144,7 +160,16 @@ class Game:
             space.draw(self._screen)
         if self._held_stack:  # Draw held stack last.
             self._held_stack.draw(self._screen)
+        if self._won:
+            self.draw_win_text()
         pygame.display.update()
+
+    def draw_win_text(self):
+        """Draw the winning message."""
+        # Center text rectangle on screen center.
+        text_rect = self._win_text.get_rect()
+        text_rect.center = self._screen.get_rect().center
+        self._screen.blit(self._win_text, text_rect)
 
     def get_mouse_target(self):
         """Get target based off mouse position."""
@@ -153,15 +178,17 @@ class Game:
             target = space.check_for_target(cursor_pos)
             if target:
                 return target
+        return None
 
     def get_release_dest(self):
         """Check to see if there is a valid space to move held stack to."""
-        if self._held_stack:
-            for space in self.spaces:
-                if space.is_valid_drop_point(self._held_stack) and self.room_for_move(
-                    self._held_stack, space
-                ):
-                    return space
+        if not self._held_stack:
+            raise Exception("Method get_release_dest called with empty hand.")
+        for space in self.spaces:
+            if space.is_valid_drop_point(self._held_stack) and self.room_for_move(
+                self._held_stack, space
+            ):
+                return space
         return None
 
     def get_valid_space(self, stack: "MoveStack", space_list: list["Space"]):
@@ -181,14 +208,15 @@ class Game:
 
     def handle_click_release(self):
         """Handle release from a click rather than a hold."""
-        if self._held_stack:
-            # A single click will try to automatically move a stack.
-            dest = self.auto_dest(self._held_stack)
-            if dest:
-                self.make_move(self._held_stack, dest)
-            else:
-                self._held_stack.go_home()
-            self.clear_hand()
+        if not self._held_stack:
+            return
+        # A single click will try to automatically move a stack.
+        dest = self.auto_dest(self._held_stack)
+        if dest:
+            self.make_move(self._held_stack, dest)
+        else:
+            self._held_stack.go_home()
+        self.clear_hand()
 
     def handle_events(self):
         """Handle game events."""
@@ -201,19 +229,21 @@ class Game:
             event_key = event.key
         else:
             event_key = event.type
-        if event_key in self._event_methods:
-            method = self._event_methods[event_key]
-            method()  # Call method.
+        if not event_key in self._event_methods:
+            return
+        method = self._event_methods[event_key]
+        method()
 
     def handle_hold_release(self):
         """Handle mouse release from being held down."""
-        if self._held_stack:
-            dest = self.get_release_dest()
-            if dest:
-                self.make_move(self._held_stack, dest)
-            else:  # If no valid location, return to original position.
-                self._held_stack.go_home()
-            self.clear_hand()
+        if not self._held_stack:
+            return
+        dest = self.get_release_dest()
+        if dest:
+            self.make_move(self._held_stack, dest)
+        else:  # If no valid location, return to original position.
+            self._held_stack.go_home()
+        self.clear_hand()
 
     def handle_mouse_down(self):
         """Check to see if user clicked something."""
@@ -241,6 +271,8 @@ class Game:
 
     def room_for_move(self, stack: "MoveStack", space: "Space"):
         """Check if there are enough empty spaces to manage a move."""
+        if isinstance(space, Foundation):
+            return True  # Needed so founds can be moved to if no empty cells.
         max_stack_length = self.empty_spaces
         if stack.home_space.is_empty:
             # Don't count home space as empty since it tehnically still has the stack in it.
@@ -281,14 +313,17 @@ class Game:
 
     def undo(self):
         """Undo last made move."""
-        if self._moves:  # If there are moves to undo.
-            last_move = self._moves[-1]
-            undo_stack = last_move["dest"]._stack.make_stack(last_move["card"])
-            undo_stack.make_move(last_move["source"])
-            self._moves.pop()  # Remove undone move from moves.
+        if not self._moves:
+            return
+        last_move = self._moves[-1]
+        undo_stack = last_move["dest"].make_sub_stack(last_move["card"])
+        undo_stack.make_move(last_move["source"])
+        self._moves.pop()  # Remove undone move from moves.
 
     def update(self):
         """Update for new tick."""
+        if self.has_won:
+            self._won = True
         if self._held_stack:
             self._held_stack.drag(pygame.mouse.get_pos())
 

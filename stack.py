@@ -49,18 +49,18 @@ class Stack:
 
     @property
     def cards(self):
-        """Getter for list of cards."""
+        """List of cards in the stack, starting from bottom."""
         return self._cards
 
     @property
     def home_space(self):
-        """Getter for home_space."""
+        """Where the stack is located, or if MoveStack, where it originally belonged."""
         return self._home_space
 
     @property
     def is_empty(self):
         """If there are no cards in the stack."""
-        return self.length == 0
+        return not bool(self._cards)
 
     @property
     def length(self):
@@ -92,10 +92,10 @@ class Stack:
 
     def get_sub_stack(self, card: "Card"):
         """Take a card and return a list of it and all cards above it in the stack."""
-        if card in self._cards:
-            card_index = self._cards.index(card)
-            return self._cards[card_index:]
-        return None
+        if not card in self._cards:
+            raise Exception(f"Card {card} not in {self}")
+        card_index = self._cards.index(card)
+        return self._cards[card_index:]
 
     def go_home(self):
         """Send stack to its home space."""
@@ -105,11 +105,11 @@ class Stack:
     def make_stack(self, start_card: "Card"):
         """Try and make a valid movestack starting from the card."""
         substack = self.get_sub_stack(start_card)
-        if substack and is_valid_stack(substack):
-            for card in substack:
-                self.remove_card(card)
-            return MoveStack(self._home_space, substack)
-        return None
+        if not substack or not is_valid_stack(substack):
+            return None
+        for card in substack:
+            self.remove_card(card)
+        return MoveStack(self._home_space, substack)
 
     def remove_card(self, card: "Card"):
         """Remove card from stack if it exists."""

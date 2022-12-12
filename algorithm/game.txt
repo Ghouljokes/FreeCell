@@ -11,6 +11,7 @@ Game class:
         set self._last_click to now
         set self._moves to empty list
         set self._running to True
+        set self._won to False
         set self._event_methods to dict {
             pygame.QUIT: self.quit, pygame.MOUSEBUTTONDOWN: self.handle_mouse_down, pygame.MOUSEBUTTONUP: self.handle_mouse_up,
             pygame.K_z: self.undo, pygame.K_a: self.handle_a_key
@@ -18,11 +19,12 @@ Game class:
 
     @property
     empty_spaces:
-        empty_count = 0
-        for space in self._free_cells + self._tableau:
-            if space.is_empty:
-                increase empty_count by 1
-        return empty_count
+        whether_empty = [space.is_empty for space in tableau and free cells]
+        return sum(whether_empty)
+
+    @property
+    has_won:
+        Check if tableaus and free cells are all empty.
 
     @property
     sorted_tableau:
@@ -87,6 +89,11 @@ Game class:
             add card width + BUFFER_SIZE to x_pos
         return tableaus
 
+    create_win_text:
+        set font
+        set message
+        create and return text object
+
     deal_cards:
         create deck
         shuffle deck
@@ -103,7 +110,14 @@ Game class:
             space.draw(self._screen)
         if held_stack:
             held_stack.draw(self._screen)
-        update screen.
+        if self._won:
+            self.draw_win_text
+        update screen
+
+    draw_win_text:
+        Get base rectangle from win_text
+        Move rectangle so center is screen center.
+        Display text
 
     get_mouse_target:
         get cursor_pos
@@ -221,5 +235,7 @@ Game class:
             remove last move from move_list
 
     update:
+        if self.won:
+            set self._won to True
         if self._held_stack:
             stack.drag to mouse location

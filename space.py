@@ -25,6 +25,7 @@ class Space:
 
     @property
     def stack(self):
+        """Stack containing the space's cards."""
         return self._stack
 
     @property
@@ -48,6 +49,7 @@ class Space:
         return self._rect
 
     def add_card(self, card: "Card"):
+        """Add a card to space's stack."""
         self._stack.add_card(card)
 
     def check_for_target(self, cursor_pos: tuple[int, int]):
@@ -97,19 +99,13 @@ class Tableau(Space):
     def next_card_pos(self):
         """Get next position a card would move to."""
         x = self._rect.x
-        if self.top_card:
-            y = self.top_card.rect.top + STACK_OFFSET
-        else:
-            y = self._rect.y
+        y = self.top_rect.y + STACK_OFFSET if self.top_card else self._rect.y
         return (x, y)
 
     @property
     def top_rect(self):
         """Get rect of top card if it exists."""
-        if self.top_card:
-            return self.top_card.rect
-        else:
-            return self._rect
+        return self.top_card.rect if self.top_card else self._rect
 
     def check_for_target(self, cursor_pos: tuple[int, int]):
         """Try and get MoveStack from lowest card the cursor clicked."""
@@ -119,5 +115,4 @@ class Tableau(Space):
         """Check if space is a valid point for the MoveStack."""
         if self.is_empty:
             return True
-        else:
-            return stack.stacks_down(self._stack)
+        return stack.stacks_down(self._stack)
