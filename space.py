@@ -45,7 +45,7 @@ class Space:
 
     @property
     def top_rect(self):
-        """Return rect of highest card if exists. Base just returns self rect."""
+        """Return rect of highest card if exists. Base returns self rect."""
         return self._rect
 
     def add_card(self, card: "Card"):
@@ -65,16 +65,17 @@ class Space:
         else:
             pygame.draw.rect(screen, SLOT_COLOR, self._rect)
 
-    def is_valid_drop_point(self, stack: "MoveStack"):
+    def is_valid_drop_point(self, stack: "MoveStack", max_length):
         """Check if movestack can be dropped off here."""
-        return stack.in_range(self.top_rect) and self.valid_dest(stack)
+        return stack.in_range(self.top_rect) and self.valid_dest(stack, max_length)
 
     def make_sub_stack(self, card):
         """Make sub stack off of the given card."""
         return self._stack.make_stack(card)
 
-    def valid_dest(self, stack: "MoveStack"):
-        """Check if space is a valid destination for the movestack."""
+    def valid_dest(self, stack: "MoveStack", max_length):
+        """Check if space is a valid destination for the movestack.
+        Max length is count of empty spaces in game board."""
         return self.is_empty and stack.length == 1
 
 
@@ -84,7 +85,7 @@ class Foundation(Space):
     def __repr__(self):
         return f"Foundation {self._index}"
 
-    def valid_dest(self, stack: "MoveStack"):
+    def valid_dest(self, stack: "MoveStack", max_length):
         """Check if stack abides by foundation rules."""
         return stack.length == 1 and stack.piles_up(self._stack)
 
@@ -111,8 +112,15 @@ class Tableau(Space):
         """Try and get MoveStack from lowest card the cursor clicked."""
         return self._stack.get_mouse_target(cursor_pos)
 
-    def valid_dest(self, stack: "MoveStack"):
+    def has_room(self, stack: "MoveStack", max_length):
+        """Check if there are enough empty spaces to move cards."""
+        max_stack_length = max_length
+        if stack.home_space.is_empty:  # don't count home space.
+            max_stack_length -= 1
+        if not self.is_empty:  # Add to max length since not taking up empty.
+            max_stack_length += 1
+        return stack.length <= max_stack_length
+
+    def valid_dest(self, stack: "MoveStack", max_length):
         """Check if space is a valid point for the MoveStack."""
-        if self.is_empty:
-            return True
-        return stack.stacks_down(self._stack)
+        return self.has_room(stack, max_length) and stack.stacks_down(self._stack)

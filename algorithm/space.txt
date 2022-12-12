@@ -42,20 +42,19 @@ class Space:
         else:
             draw the rect
 
-    is_valid_drop_point(stack):
-        return stack.in_range(self.top_rect) and self.valid_dest(stack)    
+    is_valid_drop_point(stack, max_length):
+        self.valid_dest(stack, max_length)    
 
-    valid_dest(stack):
-        return self.is_empty and stack.length == 1
-
+    valid_dest(stack, max_length):
+        return self.is_empty and self.has_room(stack, max_length)
 
 class Foundation(Space)
 
     __repr__:
         return "foundation {index}"
 
-    valid_dest(stack):
-        return stack.length == 1 and stack.piles_up(self.cards)
+    valid_dest(stack, max_length=1):
+        stack.length == 1 and stack.piles_up(self.cards)
 
 
 class FreeCell(Space)
@@ -85,8 +84,13 @@ class Tableau(Space)
     check_for_target(cursor_pos):
         return self._stack.get_mouse_target(cursor_pos)
 
-    valid_dest(stack):
-        if self.is_empty:
-            return True
-        else:
-            return stack.stacks_down(self._stack) 
+    def has_room(stack, max_length):
+        max_stack_length = max_length
+        if stack's home space is empty:
+            subtract one from max_stack_length
+        if self is not empty:
+            add one to max_stack_length
+        return stack.length <= max_stack_length
+
+    valid_dest(stack, max_length):
+        return self.has_room(stack, max_length) and stack.stacks_down(self._stack)

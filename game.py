@@ -1,4 +1,3 @@
-from typing import TYPE_CHECKING
 from random import shuffle
 import time
 import pygame
@@ -66,7 +65,8 @@ class Game:
     def auto_dest(self, stack: "MoveStack"):
         """Automatically move stack to first available space if it exists.
         Priority is Foundations, (sorted) Tableau, then Free cells."""
-        for space_list in [self._foundation, self.sorted_tableau, self._free_cells]:
+        spaces = [self._foundation, self.sorted_tableau, self._free_cells]
+        for space_list in spaces:
             space = self.get_valid_space(stack, space_list)
             if space:
                 return space
@@ -185,9 +185,7 @@ class Game:
         if not self._held_stack:
             raise Exception("Method get_release_dest called with empty hand.")
         for space in self.spaces:
-            if space.is_valid_drop_point(self._held_stack) and self.room_for_move(
-                self._held_stack, space
-            ):
+            if space.is_valid_drop_point(self._held_stack, self.empty_spaces):
                 return space
         return None
 
@@ -196,7 +194,7 @@ class Game:
         for space in space_list:
             if space == stack.home_space:
                 continue
-            if self.room_for_move(stack, space) and space.valid_dest(stack):
+            if space.valid_dest(stack, self.empty_spaces):
                 return space
         return None
 
@@ -229,7 +227,7 @@ class Game:
             event_key = event.key
         else:
             event_key = event.type
-        if not event_key in self._event_methods:
+        if event_key not in self._event_methods:
             return
         method = self._event_methods[event_key]
         method()
@@ -269,18 +267,6 @@ class Game:
         """End the game."""
         self._running = False
 
-    def room_for_move(self, stack: "MoveStack", space: "Space"):
-        """Check if there are enough empty spaces to manage a move."""
-        if isinstance(space, Foundation):
-            return True  # Needed so founds can be moved to if no empty cells.
-        max_stack_length = self.empty_spaces
-        if stack.home_space.is_empty:
-            # Don't count home space as empty since it tehnically still has the stack in it.
-            max_stack_length -= 1
-        if not space.is_empty:  # Moving to empty space would take up a space.
-            max_stack_length += 1
-        return stack.length <= max_stack_length
-
     def run(self):
         """Run game until close."""
         self.set_up_game()
@@ -298,7 +284,7 @@ class Game:
         self.update()
 
     def try_move_to_found(self, space: "Space"):
-        """Try moving top card in a space to the founds and return whether successful."""
+        """Try moving top card in space to founds and return if successful."""
         if space.is_empty:
             return False
         top_stack = space.make_sub_stack(space.top_card)

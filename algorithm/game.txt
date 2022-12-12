@@ -128,14 +128,15 @@ Game class:
 
     get_release_dest:
         for space in self.spaces:
-            if space.is_valid_drop_point(self._held_stack) and 
-            self.room_for_move(self._held_stack, space):
+            if space.is_valid_drop_point(self._held_stack, self.empty_spaces):
                 return space
         return None
 
     get_valid_space(stack, spaces):
         for space in spaces:
-            if self.room_for_move(stack, space) and space.valid_dest(stack):
+            if space == stack.home_space:
+                continue
+            if space.valid_dest(stack, self.empty_spaces):
                 return space
         return None
 
@@ -194,14 +195,6 @@ Game class:
 
     quit:
         set self._running to False
-
-    room_for_move(stack, space):
-        max_stack_length = self.empty_spaces
-        if stack.home_space.is_empty:
-            max_stack_length -= 1
-        if not space.is_empty:
-            max_stack_length += 1
-        return stack.length <= max_stack_length
 
     run:
         self.set_up_game()
